@@ -1,0 +1,267 @@
+{
+    "project": "emm",
+    "branchName": "emm/sqlite-integration",
+    "description": "SQLite Integration for Emm Script - Convert from file-based tracking to database management",
+    "tasks": [
+        {
+            "id": "001",
+            "title": "Create features table",
+            "description": "As a developer, I need a features table to store feature markdown content.",
+            "acceptanceCriteria": [
+                "Create features table with columns: id, content, hash, name, created_at",
+                "Add foreign key constraint from sessions.feature_id to features.id",
+                "Typecheck passes"
+            ],
+            "priority": 1,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "002",
+            "title": "Create sessions table",
+            "description": "As a developer, I need a sessions table to track emm execution sessions.",
+            "acceptanceCriteria": [
+                "Create sessions table with columns: id, feature_id, max_iterations, tool, status, created_at, completed_at, total_iterations, total_tasks, completed_tasks",
+                "Typecheck passes"
+            ],
+            "priority": 2,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "003",
+            "title": "Create tasks table",
+            "description": "As a developer, I need a tasks table to store extracted tasks.",
+            "acceptanceCriteria": [
+                "Create tasks table with columns: id, session_id, branch_name, task_id, title, description, acceptance_criteria, status, started_at, completed_at",
+                "Add foreign key constraint from tasks.session_id to sessions.id",
+                "Typecheck passes"
+            ],
+            "priority": 3,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "004",
+            "title": "Create iterations table",
+            "description": "As a developer, I need an iterations table to track each emm iteration.",
+            "acceptanceCriteria": [
+                "Create iterations table with columns: id, session_id, iteration_number, task_id_worked_on, status, started_at, completed_at, opencode_output, opencode_stderr",
+                "Add foreign key constraint from iterations.session_id to sessions.id",
+                "Typecheck passes"
+            ],
+            "priority": 4,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "005",
+            "title": "Create console_logs table",
+            "description": "As a developer, I need a console_logs table for audit trail.",
+            "acceptanceCriteria": [
+                "Create console_logs table with columns: id, session_id, iteration_number, log_level, component, message, created_at",
+                "Add foreign key constraint from console_logs.session_id to sessions.id",
+                "Typecheck passes"
+            ],
+            "priority": 5,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "006",
+            "title": "Add database indexes",
+            "description": "As a developer, I need indexes for common query patterns.",
+            "acceptanceCriteria": [
+                "Create index idx_tasks_session_status on tasks(session_id, status)",
+                "Create index idx_iterations_session on iterations(session_id, iteration_number)",
+                "Typecheck passes"
+            ],
+            "priority": 6,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "007",
+            "title": "Create EmmDatabase class skeleton",
+            "description": "As a developer, I need a database class with initialization.",
+            "acceptanceCriteria": [
+                "Create scripts/emm_database.py file",
+                "Add EmmDatabase class with __init__(self, db_path: str)",
+                "Add initialize_database(self) method that creates all tables and indexes",
+                "Database file created at specified path",
+                "Typecheck passes"
+            ],
+            "priority": 7,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "008",
+            "title": "Add create_feature method",
+            "description": "As a developer, I need to save feature files to the database.",
+            "acceptanceCriteria": [
+                "Add create_feature(self, feature_path: str) -> int method",
+                "Read feature file content",
+                "Calculate SHA256 hash of content",
+                "Insert into features table",
+                "Return feature_id",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 8,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "009",
+            "title": "Add get_feature method",
+            "description": "As a developer, I need to retrieve features from the database.",
+            "acceptanceCriteria": [
+                "Add get_feature(self, feature_id: int) -> dict method",
+                "Query features table by id",
+                "Return feature data as dictionary",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 9,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "010",
+            "title": "Add create_session method",
+            "description": "As a developer, I need to create new sessions.",
+            "acceptanceCriteria": [
+                "Add create_session(self, feature_id: int, max_iterations: int) -> int method",
+                "Insert into sessions table with status='running'",
+                "Return session_id",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 10,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "011",
+            "title": "Add get_session method",
+            "description": "As a developer, I need to retrieve session data.",
+            "acceptanceCriteria": [
+                "Add get_session(self, session_id: int) -> dict method",
+                "Query sessions table by id",
+                "Return session data as dictionary",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 11,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "012",
+            "title": "Add update_session_status method",
+            "description": "As a developer, I need to update session status.",
+            "acceptanceCriteria": [
+                "Add update_session_status(self, session_id: int, status: str) -> None method",
+                "Update sessions table status column",
+                "Set completed_at timestamp if status is 'completed' or 'failed'",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 12,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "013",
+            "title": "Add create_task method",
+            "description": "As a developer, I need to save tasks to the database.",
+            "acceptanceCriteria": [
+                "Add create_task(self, session_id: int, task: dict) -> None method",
+                "Insert task into tasks table",
+                "Convert acceptance_criteria list to JSON string",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 13,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "014",
+            "title": "Add get_next_task method",
+            "description": "As a developer, I need to get the next pending task.",
+            "acceptanceCriteria": [
+                "Add get_next_task(self, session_id: int) -> Optional[dict] method",
+                "Query tasks where session_id matches and status='pending'",
+                "Order by task_id ascending",
+                "Return first match or None",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 14,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "015",
+            "title": "Add update_task_status method",
+            "description": "As a developer, I need to update task status.",
+            "acceptanceCriteria": [
+                "Add update_task_status(self, session_id: int, task_id: str, status: str) -> None method",
+                "Update tasks table status column",
+                "Set started_at timestamp if status changes to 'in_progress'",
+                "Set completed_at timestamp if status changes to 'completed'",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 15,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "016",
+            "title": "Add create_iteration method",
+            "description": "As a developer, I need to record when iterations start.",
+            "acceptanceCriteria": [
+                "Add create_iteration(self, session_id: int, iteration_number: int, task_id: str) -> int method",
+                "Insert into iterations table with status='running'",
+                "Return iteration_id",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 16,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "017",
+            "title": "Add update_iteration method",
+            "description": "As a developer, I need to save iteration outputs.",
+            "acceptanceCriteria": [
+                "Add update_iteration(self, iteration_id: int, output: str, stderr: str) -> None method",
+                "Update iterations table with opencode_output, opencode_stderr, completed_at",
+                "Set status to 'completed'",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 17,
+            "passes": false,
+            "notes": ""
+        },
+        {
+            "id": "018",
+            "title": "Add log_message method",
+            "description": "As a developer, I need to log console messages.",
+            "acceptanceCriteria": [
+                "Add log_message(self, session_id: int, iteration_number: int, level: str, component: str, message: str) -> None method",
+                "Insert into console_logs table",
+                "Typecheck passes",
+                "Tests pass"
+            ],
+            "priority": 18,
+            "passes": false,
+            "notes": ""
+        }
+    ]
+}
