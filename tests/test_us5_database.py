@@ -3,7 +3,7 @@ import sqlite3
 import tempfile
 import os
 from pathlib import Path
-from scripts.emm_database import EmmDatabase
+from emm.database import EmmDatabase
 
 class TestUS5Database(unittest.TestCase):
     def setUp(self):

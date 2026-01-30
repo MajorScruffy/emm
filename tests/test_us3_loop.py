@@ -1,15 +1,17 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from scripts.emm import EmmAgent
+from emm.core import EmmAgent
 
 class TestUS3Loop(unittest.TestCase):
     def setUp(self):
         self.mock_db = MagicMock()
-        with patch('scripts.emm.EmmDatabase', return_value=self.mock_db):
-            with patch('scripts.emm.Console'):
-                with patch('scripts.emm.Path.mkdir'):
-                    self.agent = EmmAgent(max_iterations=5)
-                    self.agent.session_id = 123
+        self.mock_console = MagicMock()
+        self.agent = EmmAgent(
+            db=self.mock_db, 
+            console=self.mock_console, 
+            max_iterations=5
+        )
+        self.agent.session_id = 123
 
     @patch.object(EmmAgent, 'run_ai_tool')
     def test_run_iteration_success(self, mock_tool):
@@ -48,7 +50,7 @@ class TestUS3Loop(unittest.TestCase):
         """US3.3: Assert session marked as failed when max iterations reached."""
         mock_iter.return_value = False # Never completes
         
-        with patch.object(self.agent, 'setup_directories'):
+        with patch('emm.core.config.ensure_dirs'):
             with patch.object(self.agent, '_init_session'):
                 with patch.object(self.agent, 'display_tasks_table'):
                     result = self.agent.run()
@@ -61,7 +63,7 @@ class TestUS3Loop(unittest.TestCase):
         """US3.4: Assert session marked as interrupted on KeyboardInterrupt."""
         mock_iter.side_effect = KeyboardInterrupt()
         
-        with patch.object(self.agent, 'setup_directories'):
+        with patch('emm.core.config.ensure_dirs'):
             with patch.object(self.agent, '_init_session'):
                 with patch.object(self.agent, 'display_tasks_table'):
                     result = self.agent.run()

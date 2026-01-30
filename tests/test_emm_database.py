@@ -5,7 +5,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from scripts.emm_database import EmmDatabase
+from emm.database import EmmDatabase
 
 class TestEmmDatabase(unittest.TestCase):
     def setUp(self):

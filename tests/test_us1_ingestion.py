@@ -2,7 +2,7 @@ import unittest
 import json
 import tempfile
 from pathlib import Path
-from scripts.feature_parser import FeatureParser
+from emm.parser import FeatureParser
 
 class TestUS1Ingestion(unittest.TestCase):
     def setUp(self):

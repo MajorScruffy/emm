@@ -1,25 +1,28 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
-from scripts.emm import EmmAgent
+from emm.core import EmmAgent
 
 class TestUS2Sessions(unittest.TestCase):
     def setUp(self):
-        # Mock the database
+        # Mock the dependencies
         self.mock_db = MagicMock()
+        self.mock_console = MagicMock()
         
-        # Patch the database and other initialization side effects
-        with patch('scripts.emm.EmmDatabase', return_value=self.mock_db):
-            with patch('scripts.emm.Console'):
-                with patch('scripts.emm.Path.mkdir'):
-                    self.agent = EmmAgent(max_iterations=10)
+        # Initialize agent with injected mocks
+        # We still might need to patch Path.mkdir if run() is called, 
+        # but for _init_session we just need the mocks.
+        self.agent = EmmAgent(
+            db=self.mock_db, 
+            console=self.mock_console, 
+            max_iterations=10
+        )
 
     def test_fresh_session_start(self):
         """US2.1: Assert fresh session start when no resume is requested."""
         self.mock_db.create_feature.return_value = 1
         self.mock_db.create_session.return_value = 100
         
-        # We need to mock _ingest_feature_if_needed to avoid real file checks
         with patch.object(self.agent, '_ingest_feature_if_needed'):
             self.agent._init_session()
             
@@ -49,7 +52,7 @@ class TestUS2Sessions(unittest.TestCase):
         self.assertEqual(self.agent.session_id, 600)
         self.mock_db.create_session.assert_called_once()
 
-    @patch('scripts.emm.FeatureParser.parse_json_feature')
+    @patch('emm.core.FeatureParser.parse_json_feature')
     def test_task_ingestion_logic(self, mock_parse):
         """US2.1: Assert tasks are ingested if none exist for the session."""
         self.agent.session_id = 999
@@ -61,8 +64,8 @@ class TestUS2Sessions(unittest.TestCase):
             ]
         }
         
-        # Mocking existence of feature.json
-        with patch('scripts.emm.Path.exists', return_value=True):
+        # Mocking existence of feature.json via Path.exists
+        with patch('emm.core.Path.exists', return_value=True):
             self.agent._ingest_feature_if_needed()
             
         self.mock_db.create_task.assert_called_once()
