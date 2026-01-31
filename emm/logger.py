@@ -1,6 +1,7 @@
 from typing import Optional, Any, List, Dict
 from contextlib import contextmanager
 import sys
+import logging
 
 try:
     from rich.console import Console
@@ -9,6 +10,51 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+
+# 2. Handlers
+class EmmConsoleHandler(logging.Handler):
+    """Handler for formatted console output (Rich or Simple)."""
+    def __init__(self, console):
+        super().__init__()
+        self.console = console
+        self.styles = {
+            "INFO": "cyan",
+            "ERROR": "bold red",
+            "WARNING": "bold yellow",
+            "DEBUG": "dim white"
+        }
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            style = self.styles.get(record.levelname, "white")
+            self.console.print(f"[{style}]{msg}[/{style}]")
+        except Exception:
+            self.handleError(record)
+
+class EmmDatabaseHandler(logging.Handler):
+    """Handler for SQLite database logging."""
+    def __init__(self, db, logger_proxy):
+        super().__init__()
+        self.db = db
+        self.logger_proxy = logger_proxy
+
+    def emit(self, record):
+        if not self.db or not self.logger_proxy.session_id:
+            return
+        try:
+            msg = self.format(record)
+            level = record.levelname.lower()
+            # Default to 'agent' component for general logging
+            self.db.log_message(
+                self.logger_proxy.session_id, 
+                self.logger_proxy.iteration, 
+                level, 
+                "agent", 
+                msg
+            )
+        except Exception:
+            self.handleError(record)
 
 def get_console():
     """Factory for console (Rich or Simple)."""
@@ -24,7 +70,7 @@ def get_console():
     return SimpleConsole()
 
 class DualLogger:
-    """A logger that writes to both a console and a database."""
+    """A logger that wraps standard logging and provides UI extras."""
 
     def __init__(self, console: Optional[Any] = None, db: Optional[Any] = None, session_id: Optional[int] = None):
         """
@@ -38,6 +84,22 @@ class DualLogger:
         self.session_id = session_id
         self.iteration = 0
 
+        # Setup internal standard logger
+        self.logger = logging.getLogger("emm")
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.propagate = False # Avoid double logging if root has handlers
+
+        # Remove old handlers if existing (re-init safety)
+        for h in self.logger.handlers[:]:
+            self.logger.removeHandler(h)
+
+        # Add our handlers
+        self.console_handler = EmmConsoleHandler(self.console)
+        self.db_handler = EmmDatabaseHandler(self.db, self)
+        
+        self.logger.addHandler(self.console_handler)
+        self.logger.addHandler(self.db_handler)
+
     def set_session_id(self, session_id: int):
         """Update the session ID after it is created/loaded."""
         self.session_id = session_id
@@ -46,46 +108,14 @@ class DualLogger:
         """Update the current iteration for logging context."""
         self.iteration = iteration
 
-    def _log(self, message: str, level: str, style: Optional[str] = None):
-        """Internal logging implementation.
-        
-        Args:
-            message: The message to log.
-            level: log level (info, success, error, warning).
-            style: optional rich style for console output.
-        """
-        # 1. Console Output
-        if not style:
-            styles = {
-                "info": "cyan",
-                "success": "bold green",
-                "error": "bold red",
-                "warning": "bold yellow"
-            }
-            style = styles.get(level, "white")
-        
-        self.console.print(f"[{style}]{message}[/{style}]")
-
-        # 2. Database Output
-        if self.db and self.session_id:
-            try:
-                # We hardcode 'agent' as the component for now as it's the primary context
-                self.db.log_message(self.session_id, self.iteration, level, "agent", message)
-            except Exception as e:
-                # Fallback print if DB fails
-                self.console.print(f"[dim yellow]DB Log Error: {e}[/dim yellow]")
-
     # UI Methods
     def rule(self, text: str):
-        """Display a horizontal rule with text and log to DB."""
+        """Display a horizontal rule and log it as info."""
         self.console.rule(text)
-        if self.db and self.session_id:
-            try:
-                self.db.log_message(self.session_id, self.iteration, "info", "agent", f"--- {text} ---")
-            except: pass
+        self.info(f"--- {text} ---")
 
     def table(self, title: str, columns: List[str], rows: List[List[str]], header_style: str = "bold magenta"):
-        """Display a formatted table and log a summary to DB."""
+        """Display a formatted table and log a summary."""
         if RICH_AVAILABLE:
             table = Table(title=title, show_header=True, header_style=header_style)
             for col in columns:
@@ -95,29 +125,21 @@ class DualLogger:
             self.console.print(table)
             self.console.print()
         else:
-            # Simple fallback for non-rich console
             print(f"\n--- {title} ---")
             print(" | ".join(columns))
             for row in rows:
                 print(" | ".join(row))
             print()
             
-        # Log summary to DB regardless of display mode
-        if self.db and self.session_id:
-            summary = f"TABLE: {title}\n" + " | ".join(columns) + "\n"
-            summary += "\n".join([" | ".join(row) for row in rows])
-            try:
-                self.db.log_message(self.session_id, self.iteration, "info", "agent", summary)
-            except: pass
+        # Log summary
+        summary = f"TABLE: {title}\n" + " | ".join(columns) + "\n"
+        summary += "\n".join([" | ".join(row) for row in rows])
+        self.info(summary)
 
     @contextmanager
     def status_indicator(self, start_msg: str, end_msg: str):
-        """Context manager for showing a progress status and auditing to DB."""
-        # Log to DB first for audit trail
-        if self.db and self.session_id:
-            try:
-                self.db.log_message(self.session_id, self.iteration, "info", "agent", start_msg)
-            except: pass
+        """Context manager for showing a progress status and auditing."""
+        self.info(start_msg)
             
         if RICH_AVAILABLE:
             with Progress(
@@ -134,21 +156,14 @@ class DualLogger:
             yield
             self.console.print(f"[cyan]{end_msg}[/cyan]")
 
-        # Log completion to DB
-        if self.db and self.session_id:
-            try:
-                self.db.log_message(self.session_id, self.iteration, "info", "agent", end_msg)
-            except: pass
+        self.info(end_msg)
 
-    # Ergonomic Shortcuts
+    # Ergonomic Shortcuts (Proxies to standard logging)
     def info(self, message: str):
-        self._log(message, "info")
-        
-    def success(self, message: str):
-        self._log(message, "success")
+        self.logger.info(message)
         
     def warning(self, message: str):
-        self._log(message, "warning")
+        self.logger.warning(message)
         
     def error(self, message: str):
-        self._log(message, "error")
+        self.logger.error(message)

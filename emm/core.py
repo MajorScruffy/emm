@@ -100,7 +100,7 @@ class EmmAgent:
         if output and config.COMPLETION_TAG in output:
             if current_task:
                 self.db.update_task_status(self.session_id, task_id, "completed")
-            self.log.success(f"Task {task_id} completed!")
+            self.log.info(f"Task {task_id} completed!")
             return True
 
         return False
@@ -113,7 +113,7 @@ class EmmAgent:
                 try:
                     if self.run_iteration(i):
                         self.db.update_session_status(self.session_id, "completed")
-                        self.log.success("✅ Goal reached!")
+                        self.log.info("✅ Goal reached!")
                         return 0
                 except KeyboardInterrupt:
                     self.log.warning("\nInterrupted by user")
