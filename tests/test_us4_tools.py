@@ -8,11 +8,16 @@ class TestUS4Tools(unittest.TestCase):
     def setUp(self):
         self.mock_db = MagicMock()
         self.mock_console = MagicMock()
+        self.mock_logger = MagicMock()
+        self.mock_logger.console = self.mock_console
         self.agent = EmmAgent(
             db=self.mock_db, 
-            console=self.mock_console, 
+            log=self.mock_logger, 
             max_iterations=5
         )
+        # Ensure runner uses the mock logger's log method
+        from emm.runners import ToolRunner
+        self.agent.runner = ToolRunner(log=self.mock_logger.log)
 
     @patch('subprocess.run')
     def test_run_shell_success(self, mock_run):

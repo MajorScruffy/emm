@@ -1,17 +1,18 @@
-"""
-Tool execution runners for Emm.
-"""
-
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Any
+from emm.logger import DualLogger
 from emm import config
 
 class ToolRunner:
     """Base class/namespace for tool execution."""
     
-    def __init__(self, console: Any):
-        self.console = console
+    def __init__(self, log: DualLogger):
+        """
+        Args:
+            log: A DualLogger instance.
+        """
+        self.log = log
 
     def run_shell(self, cmd: List[str], stdin_file: Optional[Path] = None, timeout: int = config.COMMAND_TIMEOUT) -> str:
         """Execute a shell command and return output."""
@@ -33,17 +34,17 @@ class ToolRunner:
 
             # Display output
             if result.stdout:
-                self.console.print(f"[dim]{result.stdout}[/dim]")
+                self.log.info(result.stdout)
             if result.stderr:
-                self.console.print(f"[yellow]{result.stderr}[/yellow]")
+                self.log.warning(result.stderr)
 
             return (result.stdout or "") + (result.stderr or "")
 
         except subprocess.TimeoutExpired:
-            self.console.print(f"[red]Error: Command {cmd} timed out after {timeout} seconds[/red]")
+            self.log.error(f"Error: Command {cmd} timed out after {timeout} seconds")
             return "ERROR: Timeout"
         except Exception as e:
-            self.console.print(f"[red]Error running command {cmd}: {e}[/red]")
+            self.log.error(f"Error running command {cmd}: {e}")
             return f"ERROR: {e}"
 
     def run_opencode(self) -> str:

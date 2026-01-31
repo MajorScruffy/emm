@@ -6,12 +6,18 @@ class TestUS3Loop(unittest.TestCase):
     def setUp(self):
         self.mock_db = MagicMock()
         self.mock_console = MagicMock()
+        self.mock_logger = MagicMock()
+        self.mock_logger.console = self.mock_console
+        
         self.agent = EmmAgent(
             db=self.mock_db, 
-            console=self.mock_console, 
+            log=self.mock_logger, 
             max_iterations=5
         )
         self.agent.session_id = 123
+        # Set runner for consistency
+        from emm.runners import ToolRunner
+        self.agent.runner = ToolRunner(log=self.mock_logger.log)
 
     @patch.object(EmmAgent, 'run_ai_tool')
     def test_run_iteration_success(self, mock_tool):

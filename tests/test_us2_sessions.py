@@ -8,13 +8,13 @@ class TestUS2Sessions(unittest.TestCase):
         # Mock the dependencies
         self.mock_db = MagicMock()
         self.mock_console = MagicMock()
+        self.mock_logger = MagicMock()
+        self.mock_logger.console = self.mock_console
         
         # Initialize agent with injected mocks
-        # We still might need to patch Path.mkdir if run() is called, 
-        # but for _init_session we just need the mocks.
         self.agent = EmmAgent(
             db=self.mock_db, 
-            console=self.mock_console, 
+            log=self.mock_logger,
             max_iterations=10
         )
 
