@@ -4,6 +4,7 @@ from emm.parser import FeatureParser
 from emm.runners import ToolRunner
 from emm.logger import DualLogger
 from emm import config
+import sys
 
 
 class EmmAgent:
@@ -35,33 +36,19 @@ class EmmAgent:
                 self.log.set_session_id(self.session_id)
                 self.log.info(f"Resuming session {self.session_id}")
                 return
+            else:
+                self.log.error("No sessions found to resume.")
+                sys.exit(1)
 
-        # Start new session
-        feat_id = 1
-        if self.feature_path and Path(self.feature_path).exists():
-            feat_id = self.db.create_feature(self.feature_path)
+        # Start new session by claiming an available feature
+        self.session_id = self.db.claim_next_available_feature(self.max_iterations)
         
-        self.session_id = self.db.create_session(feat_id, self.max_iterations)
+        if not self.session_id:
+            self.log.warning("No unclaimed features found in database. Exiting.")
+            sys.exit(0)
+            
         self.log.set_session_id(self.session_id)
-        self.log.info(f"Started new session {self.session_id}")
-        self._ingest_feature_if_needed()
-
-    def _ingest_feature_if_needed(self):
-        """Load tasks from JSON into the database if not already present."""
-        existing_tasks = self.db.get_tasks(self.session_id)
-        if existing_tasks:
-            return
-
-        json_path = Path(self.feature_path) if (self.feature_path and self.feature_path.endswith('.json')) else None
-        if not json_path and config.FEATURE_JSON.exists():
-            json_path = config.FEATURE_JSON
-
-        if json_path:
-            data = FeatureParser.parse_json_feature(json_path)
-            tasks = data.get("tasks", [])
-            for task in tasks:
-                self.db.create_task(self.session_id, task)
-            self.log.info(f"Ingested {len(tasks)} tasks from {json_path}")
+        self.log.info(f"Claimed feature and started session {self.session_id}")
 
     def display_tasks_table(self):
         """Display a summary table of tasks."""

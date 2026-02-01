@@ -38,6 +38,7 @@ class EmmDatabase:
         try:
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
             yield conn
             conn.commit()
         except Exception:
@@ -429,6 +430,60 @@ class EmmDatabase:
                 INSERT INTO console_logs (session_id, iteration_number, log_level, component, message)
                 VALUES (?, ?, ?, ?, ?)
             """, (session_id, iteration_number, level, component, message))
+
+    def claim_next_available_feature(self, max_iterations: int) -> Optional[int]:
+        """Atomically find the next unclaimed feature and create a session for it.
+        
+        Args:
+            max_iterations: Max iterations for the new session.
+            
+        Returns:
+            The newly created session_id, or None if no features are available.
+        """
+        # We use an explicit transaction to ensure atomicity
+        path = Path(self.db_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+            
+            # BEGIN IMMEDIATE locks the database for writing
+            conn.execute("BEGIN IMMEDIATE")
+            cursor = conn.cursor()
+            
+            # Find a feature with no session OR no active session
+            # For now, let's keep it simple: no session at all.
+            cursor.execute("""
+                SELECT id FROM features 
+                WHERE id NOT IN (SELECT feature_id FROM sessions)
+                ORDER BY id ASC
+                LIMIT 1
+            """)
+            row = cursor.fetchone()
+            
+            if not row:
+                conn.rollback()
+                return None
+                
+            feature_id = row['id']
+            
+            # Create the session
+            cursor.execute(
+                "INSERT INTO sessions (feature_id, max_iterations) VALUES (?, ?)",
+                (feature_id, max_iterations)
+            )
+            session_id = cursor.lastrowid
+            
+            conn.commit()
+            return session_id
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def close(self) -> None:
         """Close database resources (Legacy method for compatibility)."""

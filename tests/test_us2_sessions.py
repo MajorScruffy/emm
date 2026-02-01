@@ -19,15 +19,13 @@ class TestUS2Sessions(unittest.TestCase):
         )
 
     def test_fresh_session_start(self):
-        """US2.1: Assert fresh session start when no resume is requested."""
-        self.mock_db.create_feature.return_value = 1
-        self.mock_db.create_session.return_value = 100
+        """US2.1: Assert fresh session start via claiming."""
+        self.mock_db.claim_next_available_feature.return_value = 100
         
-        with patch.object(self.agent, '_ingest_feature_if_needed'):
-            self.agent._init_session()
+        self.agent._init_session()
             
         self.assertEqual(self.agent.session_id, 100)
-        self.mock_db.create_session.assert_called_once()
+        self.mock_db.claim_next_available_feature.assert_called_once()
 
     def test_session_resumption_success(self):
         """US2.2: Assert correct session ID is picked up when --resume is used."""
@@ -40,35 +38,20 @@ class TestUS2Sessions(unittest.TestCase):
         self.mock_db.get_last_session_id.assert_called_with()
         self.mock_db.create_session.assert_not_called()
 
-    def test_resume_fallback_when_none_found(self):
-        """US2.4: Assert fresh start fallback when no previous session exists to resume."""
+    def test_resume_exit_when_none_found(self):
+        """US2.4: Assert exit when no previous session exists to resume."""
         self.agent.resume = True
         self.mock_db.get_last_session_id.return_value = None
-        self.mock_db.create_session.return_value = 600
         
-        with patch.object(self.agent, '_ingest_feature_if_needed'):
+        with self.assertRaises(SystemExit):
             self.agent._init_session()
-            
-        self.assertEqual(self.agent.session_id, 600)
-        self.mock_db.create_session.assert_called_once()
 
-    @patch('emm.core.FeatureParser.parse_json_feature')
-    def test_task_ingestion_logic(self, mock_parse):
-        """US2.1: Assert tasks are ingested if none exist for the session."""
-        self.agent.session_id = 999
-        self.mock_db.get_tasks.return_value = [] # DB is empty
+    def test_no_work_found_exit(self):
+        """US2.1: Assert exit when no unclaimed features are found."""
+        self.mock_db.claim_next_available_feature.return_value = None
         
-        mock_parse.return_value = {
-            "tasks": [
-                {"id": "001", "title": "T1", "description": "D1"}
-            ]
-        }
-        
-        # Mocking existence of feature.json via Path.exists
-        with patch('emm.core.Path.exists', return_value=True):
-            self.agent._ingest_feature_if_needed()
-            
-        self.mock_db.create_task.assert_called_once()
+        with self.assertRaises(SystemExit):
+            self.agent._init_session()
 
 if __name__ == "__main__":
     unittest.main()
