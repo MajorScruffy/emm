@@ -11,11 +11,12 @@ class TestEmmDatabase(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
         self.db_path = os.path.join(self.test_dir, "test_emm.db")
-        self.feature_path = os.path.join(self.test_dir, "test_feature.md")
+        self.db_path = os.path.join(self.test_dir, "test_emm.db")
+        self.project_path = os.path.join(self.test_dir, "test_project.md")
         
-        # Create dummy feature file
-        with open(self.feature_path, 'w') as f:
-            f.write("# Test Feature\n\nSome content")
+        # Create dummy project file
+        with open(self.project_path, 'w') as f:
+            f.write("# Test Project\n\nSome content")
             
         # Initialize DB
         self.db = EmmDatabase(self.db_path)
@@ -29,32 +30,32 @@ class TestEmmDatabase(unittest.TestCase):
         with self.db.connection() as conn:
             cursor = conn.cursor()
             # Check tables exist
-            tables = ["features", "sessions", "tasks", "iterations", "console_logs"]
+            tables = ["projects", "sessions", "tasks", "iterations", "console_logs"]
             for table in tables:
                 cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
                 self.assertIsNotNone(cursor.fetchone(), f"Table {table} should exist")
 
-    def test_feature_operations(self):
+    def test_project_operations(self):
         # Create
-        feature_id = self.db.create_feature(self.feature_path)
-        self.assertGreater(feature_id, 0)
+        project_id = self.db.create_project(self.project_path)
+        self.assertGreater(project_id, 0)
         
         # Get
-        feature = self.db.get_feature(feature_id)
-        self.assertEqual(feature['name'], "test_feature")
-        self.assertEqual(feature['content'], "# Test Feature\n\nSome content")
-        self.assertIsNotNone(feature['hash'])
+        project = self.db.get_project(project_id)
+        self.assertEqual(project['name'], "test_project")
+        self.assertEqual(project['content'], "# Test Project\n\nSome content")
+        self.assertIsNotNone(project['hash'])
 
     def test_session_operations(self):
-        feature_id = self.db.create_feature(self.feature_path)
+        project_id = self.db.create_project(self.project_path)
         
         # Create
-        session_id = self.db.create_session(feature_id, max_iterations=10)
+        session_id = self.db.create_session(project_id, max_iterations=10)
         self.assertGreater(session_id, 0)
         
         # Get
         session = self.db.get_session(session_id)
-        self.assertEqual(session['feature_id'], feature_id)
+        self.assertEqual(session['project_id'], project_id)
         self.assertEqual(session['max_iterations'], 10)
         self.assertEqual(session['status'], 'running')
         
@@ -65,15 +66,15 @@ class TestEmmDatabase(unittest.TestCase):
         self.assertIsNotNone(session['completed_at'])
 
     def test_task_operations(self):
-        feature_id = self.db.create_feature(self.feature_path)
-        session_id = self.db.create_session(feature_id, 10)
+        project_id = self.db.create_project(self.project_path)
+        session_id = self.db.create_session(project_id, 10)
         
         task_data = {
             'id': '001',
             'title': 'Test Task',
             'description': 'Description',
             'acceptanceCriteria': ['Criteria 1', 'Criteria 2'],
-            'branchName': 'feature/test'
+            'branchName': 'project/test'
         }
         
         # Create
@@ -97,8 +98,8 @@ class TestEmmDatabase(unittest.TestCase):
             self.assertIsNotNone(row['started_at'])
 
     def test_iteration_operations(self):
-        feature_id = self.db.create_feature(self.feature_path)
-        session_id = self.db.create_session(feature_id, 10)
+        project_id = self.db.create_project(self.project_path)
+        session_id = self.db.create_session(project_id, 10)
         
         # Create
         iteration_id = self.db.create_iteration(session_id, 1, '001')
@@ -114,8 +115,8 @@ class TestEmmDatabase(unittest.TestCase):
             self.assertIsNotNone(row['completed_at'])
 
     def test_log_message(self):
-        feature_id = self.db.create_feature(self.feature_path)
-        session_id = self.db.create_session(feature_id, 10)
+        project_id = self.db.create_project(self.project_path)
+        session_id = self.db.create_session(project_id, 10)
         
         self.db.log_message(session_id, 1, 'info', 'message')
         

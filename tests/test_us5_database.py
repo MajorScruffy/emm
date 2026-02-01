@@ -21,7 +21,7 @@ class TestUS5Database(unittest.TestCase):
         with self.db.connection() as conn:
             cursor = conn.cursor()
             # Check tables
-            tables = ["features", "sessions", "tasks", "iterations", "console_logs"]
+            tables = ["projects", "sessions", "tasks", "iterations", "console_logs"]
             for table in tables:
                 cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
                 self.assertIsNotNone(cursor.fetchone(), f"Table {table} should exist")
@@ -34,24 +34,24 @@ class TestUS5Database(unittest.TestCase):
         """US5.2: Assert transaction rolls back on exception within context manager."""
         self.db.initialize_database()
         
-        # Insert a feature successfully
+        # Insert a project successfully
         with self.db.connection() as conn:
-            conn.execute("INSERT INTO features (content, hash, name) VALUES ('C1', 'H1', 'N1')")
+            conn.execute("INSERT INTO projects (content, hash, name) VALUES ('C1', 'H1', 'N1')")
         
         # Attempt to insert another but fail mid-way
         try:
             with self.db.connection() as conn:
-                conn.execute("INSERT INTO features (content, hash, name) VALUES ('C2', 'H2', 'N2')")
+                conn.execute("INSERT INTO projects (content, hash, name) VALUES ('C2', 'H2', 'N2')")
                 raise RuntimeError("Artificial failure")
         except RuntimeError:
             pass
         
         # Verify only C1 exists
         with self.db.connection() as conn:
-            row = conn.execute("SELECT COUNT(*) FROM features").fetchone()
+            row = conn.execute("SELECT COUNT(*) FROM projects").fetchone()
             self.assertEqual(row[0], 1)
             
-            row = conn.execute("SELECT name FROM features").fetchone()
+            row = conn.execute("SELECT name FROM projects").fetchone()
             self.assertEqual(row[0], 'N1')
 
     def test_foreign_key_enforcement(self):
@@ -59,9 +59,9 @@ class TestUS5Database(unittest.TestCase):
         self.db.initialize_database()
         
         with self.db.connection() as conn:
-            # Attempt to create a session with non-existent feature_id
+            # Attempt to create a session with non-existent project_id
             with self.assertRaises(sqlite3.IntegrityError):
-                conn.execute("INSERT INTO sessions (feature_id, max_iterations) VALUES (999, 10)")
+                conn.execute("INSERT INTO sessions (project_id, max_iterations) VALUES (999, 10)")
 
     def test_context_manager_closure(self):
         """US5.3: Assert connections are closed even on error."""

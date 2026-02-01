@@ -2,7 +2,7 @@ import unittest
 import json
 import tempfile
 from pathlib import Path
-from emm.parser import FeatureParser
+from emm.parser import ProjectParser
 
 class TestUS1Ingestion(unittest.TestCase):
     def setUp(self):
@@ -14,17 +14,17 @@ class TestUS1Ingestion(unittest.TestCase):
 
     def test_valid_json_ingestion(self):
         """US1.1: Assert valid JSON parsing into dictionary."""
-        feature_data = {
+        project_data = {
             "project": "test-project",
-            "branchName": "feature/test",
+            "branchName": "project/test",
             "tasks": [
                 {"id": "001", "title": "First Task", "description": "Do something", "acceptanceCriteria": ["Done"]}
             ]
         }
-        json_file = self.temp_path / "feature.json"
-        json_file.write_text(json.dumps(feature_data))
+        json_file = self.temp_path / "project.json"
+        json_file.write_text(json.dumps(project_data))
         
-        data = FeatureParser.parse_json_feature(json_file)
+        data = ProjectParser.parse_json_project(json_file)
         self.assertEqual(data["project"], "test-project")
         self.assertEqual(len(data["tasks"]), 1)
         self.assertEqual(data["tasks"][0]["id"], "001")
@@ -34,13 +34,13 @@ class TestUS1Ingestion(unittest.TestCase):
         bad_json_file = self.temp_path / "bad.json"
         bad_json_file.write_text("{ 'invalid': json }") # Invalid JSON (single quotes, no quotes on keys)
         
-        data = FeatureParser.parse_json_feature(bad_json_file)
+        data = ProjectParser.parse_json_project(bad_json_file)
         self.assertEqual(data, {})
 
     def test_missing_file_handling(self):
         """US1.2: Assert missing file returns empty dict."""
         missing_file = self.temp_path / "missing.json"
-        data = FeatureParser.parse_json_feature(missing_file)
+        data = ProjectParser.parse_json_project(missing_file)
         self.assertEqual(data, {})
 
     def test_validation_logic(self):
@@ -49,13 +49,13 @@ class TestUS1Ingestion(unittest.TestCase):
         invalid_json_file = self.temp_path / "invalid.json"
         invalid_json_file.write_text(json.dumps({"only": "some", "junk": "data"}))
         
-        data = FeatureParser.parse_json_feature(invalid_json_file)
+        data = ProjectParser.parse_json_project(invalid_json_file)
         self.assertEqual(data, {})
 
         # 'tasks' is not a list
         not_list_file = self.temp_path / "not_list.json"
         not_list_file.write_text(json.dumps({"tasks": "not a list"}))
-        data = FeatureParser.parse_json_feature(not_list_file)
+        data = ProjectParser.parse_json_project(not_list_file)
         self.assertEqual(data, {})
 
 if __name__ == "__main__":

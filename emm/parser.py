@@ -4,25 +4,25 @@ import re
 from pathlib import Path
 from typing import List, Dict
 
-class FeatureParser:
-    """Simplistic parser for loading JSON features into the DB."""
+class ProjectParser:
+    """Simplistic parser for loading JSON projects into the DB."""
     
     @staticmethod
-    def parse_json_feature(json_path: Path) -> Dict:
-        """Parse tasks from an existing feature.json or prd.json file."""
+    def parse_json_project(json_path: Path) -> Dict:
+        """Parse tasks from an existing project.json or prd.json file."""
         if not json_path.exists():
             return {}
         try:
             data = json.loads(json_path.read_text())
-            if FeatureParser.validate_json_feature(data):
+            if ProjectParser.validate_json_project(data):
                 return data
             return {}
         except json.JSONDecodeError:
             return {}
 
     @staticmethod
-    def validate_json_feature(data: Dict) -> bool:
-        """Validate that the feature data has mandatory fields.
+    def validate_json_project(data: Dict) -> bool:
+        """Validate that the project data has mandatory fields.
         
         Args:
             data: The parsed JSON dictionary.

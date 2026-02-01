@@ -26,7 +26,7 @@ COMPLETION_TAG = "<promise>COMPLETE</promise>"
 PROMPT_FILE = ROOT_DIR / "scripts" / "prompt.md"
 CLAUDE_FILE = ROOT_DIR / "scripts" / "CLAUDE.md"
 PRD_FILE = ROOT_DIR / "scripts" / "prd.json"
-FEATURE_JSON = ROOT_DIR / ".features" / "feature.json"
+PROJECT_JSON = ROOT_DIR / ".projects" / "project.json"
 
 def ensure_dirs():
     """Ensure necessary directories exist."""

@@ -1,17 +1,17 @@
 ---
-name: task-extractor
-description: "Convert Features to feature.json format for the emm autonomous agent system. Use when you have an existing Feature and need to convert it to emm's JSON format. Triggers on: convert this feature, turn this into emm format, create feature.json from this, emm json."
+name: project-extractor
+description: "Convert Projects to project.json format for the emm autonomous agent system. Use when you have an existing Project and need to convert it to emm's JSON format. Triggers on: convert this project, turn this into emm format, create project.json from this, emm json."
 ---
 
-# emm Feature Converter
+# emm Project Converter
 
-Converts existing Features to the feature.json format that emm uses for autonomous execution.
+Converts existing Projects to the project.json format that emm uses for autonomous execution.
 
 ---
 
 ## The Job
 
-Take a Feature (markdown file or text) and convert it to `feature.json` in your emm directory.
+Take a Project (markdown file or text) and convert it to `project.json` in your emm directory.
 
 ---
 
@@ -20,13 +20,13 @@ Take a Feature (markdown file or text) and convert it to `feature.json` in your 
 ```json
 {
   "project": "[Project Name]",
-  "branchName": "emm/[feature-name-kebab-case]",
-  "description": "[Feature description from Feature title/intro]",
+  "branchName": "emm/[project-name]",
+  "description": "[Project description from Project title/intro]",
   "tasks": [
     {
       "id": "001",
       "title": "[Task title]",
-      "description": "As a [user], I want [feature] so that [benefit]",
+      "description": "As a [user], I want [project/feature] so that [benefit]",
       "acceptanceCriteria": [
         "Criterion 1",
         "Criterion 2",
@@ -121,14 +121,14 @@ Frontend tasks are NOT complete until visually verified. emm will use the dev-br
 2. **IDs**: Sequential (001, 002, etc.)
 3. **Priority**: Based on dependency order, then document order
 4. **All tasks**: `passes: false` and empty `notes`
-5. **branchName**: Derive from feature name, kebab-case, prefixed with `emm/`
+5. **branchName**: Derive from project name, kebab-case, prefixed with `emm/`
 6. **Always add**: "Typecheck passes" to every task's acceptance criteria
 
 ---
 
-## Splitting Large Features
+## Splitting Large Projects
 
-If a Feature has big features, split them:
+If a Project has big components, split them:
 
 **Original:**
 > "Add user notification system"
@@ -149,7 +149,7 @@ Each is one focused change that can be completed and verified independently.
 
 **Input PRD:**
 ```markdown
-# Task Status Feature
+# Task Status Project
 
 Add ability to mark tasks with different statuses.
 
@@ -160,12 +160,12 @@ Add ability to mark tasks with different statuses.
 - Persist status in database
 ```
 
-**Output feature.json:**
+**Output project.json:**
 ```json
 {
   "project": "TaskApp",
   "branchName": "emm/task-status",
-  "description": "Task Status Feature - Track task progress with status indicators",
+  "description": "Task Status Project - Track task progress with status indicators",
   "tasks": [
     {
       "id": "001",
@@ -231,24 +231,24 @@ Add ability to mark tasks with different statuses.
 
 ## Archiving Previous Runs
 
-**Before writing a new feature.json, check if there is an existing one from a different feature:**
+**Before writing a new project.json, check if there is an existing one from a different project:**
 
-1. Read the current `feature.json` if it exists
-2. Check if `branchName` differs from the new feature's branch name
+1. Read the current `project.json` if it exists
+2. Check if `branchName` differs from the new project's branch name
 3. If different AND `progress.txt` has content beyond the header:
-   - Create archive folder: `archive/YYYY-MM-DD-feature-name/`
-   - Copy current `feature.json` and `progress.txt` to archive
+   - Create archive folder: `archive/YYYY-MM-DD-project-name/`
+   - Copy current `project.json` and `progress.txt` to archive
    - Reset `progress.txt` with fresh header
 
-**The emm.sh script handles this automatically** when you run it, but if you are manually updating feature.json between runs, archive first.
+**The emm.sh script handles this automatically** when you run it, but if you are manually updating project.json between runs, archive first.
 
 ---
 
 ## Checklist Before Saving
 
-Before writing feature.json, verify:
+Before writing project.json, verify:
 
-- [ ] **Previous run archived** (if feature.json exists with different branchName, archive it first)
+- [ ] **Previous run archived** (if project.json exists with different branchName, archive it first)
 - [ ] Each task is completable in one iteration (small enough)
 - [ ] Tasks are ordered by dependency (schema to backend to UI)
 - [ ] Every task has "Typecheck passes" as criterion

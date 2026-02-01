@@ -11,7 +11,7 @@ from emm import config
 
 def main():
     parser = argparse.ArgumentParser(description="Emm - Long-running AI agent loop")
-    parser.add_argument("--feature", type=str, help="Path to JSON feature file")
+    parser.add_argument("--project", type=str, help="Path to JSON project file")
     parser.add_argument("--resume", action="store_true", help="Resume last incomplete session")
     parser.add_argument("max_iterations", nargs="?", type=int, default=config.DEFAULT_ITERATIONS, help="Max iterations")
 
@@ -26,7 +26,7 @@ def main():
         db=db,
         log=logger,
         max_iterations=args.max_iterations,
-        feature_path=args.feature,
+        project_path=args.project,
         resume=args.resume
     )
     

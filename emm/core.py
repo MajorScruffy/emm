@@ -1,6 +1,6 @@
 from typing import Optional, Any
 from emm.database import EmmDatabase
-from emm.parser import FeatureParser
+from emm.parser import ProjectParser
 from emm.runners import ToolRunner
 from emm.logger import DualLogger, RICH_AVAILABLE
 from emm import config
@@ -11,12 +11,12 @@ class EmmAgent:
     """Long-running AI agent automation tool with Dependency Injection."""
 
     def __init__(self, db: EmmDatabase, log: DualLogger, max_iterations: int = config.DEFAULT_ITERATIONS, 
-                 feature_path: Optional[str] = None, resume: bool = False):
+                 project_path: Optional[str] = None, resume: bool = False):
         """Initialize the agent with injected dependencies."""
         self.db = db
         self.log = log
         self.max_iterations = max_iterations
-        self.feature_path = feature_path
+        self.project_path = project_path
         self.resume = resume
         
         self.runner = ToolRunner(log=self.log)
@@ -40,15 +40,14 @@ class EmmAgent:
                 self.log.error("No sessions found to resume.")
                 sys.exit(1)
 
-        # Start new session by claiming an available feature
-        self.session_id = self.db.claim_next_available_feature(self.max_iterations)
+        self.session_id = self.db.claim_next_available_project(self.max_iterations)
         
         if not self.session_id:
-            self.log.warning("No unclaimed features found in database. Exiting.")
+            self.log.warning("No unclaimed projects found in database. Exiting.")
             sys.exit(0)
             
         self.log.set_session_id(self.session_id)
-        self.log.info(f"Claimed feature and started session {self.session_id}")
+        self.log.info(f"Claimed project and started session {self.session_id}")
 
     def display_tasks_table(self):
         """Display a summary table of tasks."""

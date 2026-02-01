@@ -20,12 +20,12 @@ class TestUS2Sessions(unittest.TestCase):
 
     def test_fresh_session_start(self):
         """US2.1: Assert fresh session start via claiming."""
-        self.mock_db.claim_next_available_feature.return_value = 100
+        self.mock_db.claim_next_available_project.return_value = 100
         
         self.agent._init_session()
             
         self.assertEqual(self.agent.session_id, 100)
-        self.mock_db.claim_next_available_feature.assert_called_once()
+        self.mock_db.claim_next_available_project.assert_called_once()
 
     def test_session_resumption_success(self):
         """US2.2: Assert correct session ID is picked up when --resume is used."""
@@ -47,8 +47,8 @@ class TestUS2Sessions(unittest.TestCase):
             self.agent._init_session()
 
     def test_no_work_found_exit(self):
-        """US2.1: Assert exit when no unclaimed features are found."""
-        self.mock_db.claim_next_available_feature.return_value = None
+        """US2.1: Assert exit when no unclaimed projects are found."""
+        self.mock_db.claim_next_available_project.return_value = None
         
         with self.assertRaises(SystemExit):
             self.agent._init_session()

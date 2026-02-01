@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 EmmDatabase - SQLite database management for emm script
-Handles features, sessions, tasks, iterations, and console logging
+Handles projects, sessions, tasks, iterations, and console logging
 """
 
 import sqlite3
@@ -56,9 +56,9 @@ class EmmDatabase:
             
     def _create_tables(self, cursor: sqlite3.Cursor) -> None:
         """Create all required tables."""
-        # Features table
+        # Projects table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS features (
+            CREATE TABLE IF NOT EXISTS projects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 content TEXT NOT NULL,
                 hash TEXT NOT NULL,
@@ -71,7 +71,7 @@ class EmmDatabase:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                feature_id INTEGER NOT NULL,
+                project_id INTEGER NOT NULL,
                 max_iterations INTEGER NOT NULL,
                 tool TEXT DEFAULT 'opencode',
                 status TEXT DEFAULT 'running',
@@ -80,7 +80,7 @@ class EmmDatabase:
                 total_iterations INTEGER DEFAULT 0,
                 total_tasks INTEGER DEFAULT 0,
                 completed_tasks INTEGER DEFAULT 0,
-                FOREIGN KEY (feature_id) REFERENCES features(id)
+                FOREIGN KEY (project_id) REFERENCES projects(id)
             )
         """)
         
@@ -142,18 +142,18 @@ class EmmDatabase:
             ON iterations(session_id, iteration_number)
         """)
 
-    # --- Features ---
-
-    def create_feature(self, feature_path: str) -> int:
-        """Read feature file, calculate hash, and save to database.
+    # --- Projects ---
+ 
+    def create_project(self, project_path: str) -> int:
+        """Read project file, calculate hash, and save to database.
         
         Args:
-            feature_path: Path to the feature file.
+            project_path: Path to the project file.
             
         Returns:
-            The feature ID of the newly created or existing feature.
+            The project ID of the newly created or existing project.
         """
-        path = Path(feature_path)
+        path = Path(project_path)
         content = path.read_text()
         hash_value = hashlib.sha256(content.encode()).hexdigest()
         name = path.stem
@@ -161,38 +161,38 @@ class EmmDatabase:
         with self.connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO features (content, hash, name) VALUES (?, ?, ?)",
+                "INSERT INTO projects (content, hash, name) VALUES (?, ?, ?)",
                 (content, hash_value, name)
             )
             return cursor.lastrowid
     
-    def get_feature(self, feature_id: int) -> Dict[str, Any]:
-        """Retrieve a feature by ID.
+    def get_project(self, project_id: int) -> Dict[str, Any]:
+        """Retrieve a project by ID.
         
         Args:
-            feature_id: The ID of the feature to retrieve.
+            project_id: The ID of the project to retrieve.
             
         Returns:
-            A dictionary containing feature data.
+            A dictionary containing project data.
             
         Raises:
-            ValueError: If the feature ID is not found.
+            ValueError: If the project ID is not found.
         """
         with self.connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM features WHERE id = ?", (feature_id,))
+            cursor.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
             row = cursor.fetchone()
             if row is None:
-                raise ValueError(f"Feature {feature_id} not found")
+                raise ValueError(f"Project {project_id} not found")
             return dict(row)
 
     # --- Sessions ---
 
-    def create_session(self, feature_id: int, max_iterations: int) -> int:
+    def create_session(self, project_id: int, max_iterations: int) -> int:
         """Create a new agent session.
         
         Args:
-            feature_id: The ID of the feature associated with this session.
+            project_id: The ID of the project associated with this session.
             max_iterations: Maximum iterations allowed for this session.
             
         Returns:
@@ -201,8 +201,8 @@ class EmmDatabase:
         with self.connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO sessions (feature_id, max_iterations) VALUES (?, ?)",
-                (feature_id, max_iterations)
+                "INSERT INTO sessions (project_id, max_iterations) VALUES (?, ?)",
+                (project_id, max_iterations)
             )
             return cursor.lastrowid
     
@@ -429,14 +429,14 @@ class EmmDatabase:
                 VALUES (?, ?, ?, ?)
             """, (session_id, iteration_number, level, message))
 
-    def claim_next_available_feature(self, max_iterations: int) -> Optional[int]:
-        """Atomically find the next unclaimed feature and create a session for it.
+    def claim_next_available_project(self, max_iterations: int) -> Optional[int]:
+        """Atomically find the next unclaimed project and create a session for it.
         
         Args:
             max_iterations: Max iterations for the new session.
             
         Returns:
-            The newly created session_id, or None if no features are available.
+            The newly created session_id, or None if no projects are available.
         """
         # We use an explicit transaction to ensure atomicity
         path = Path(self.db_path)
@@ -452,11 +452,10 @@ class EmmDatabase:
             conn.execute("BEGIN IMMEDIATE")
             cursor = conn.cursor()
             
-            # Find a feature with no session OR no active session
-            # For now, let's keep it simple: no session at all.
+            # Find a project with no session
             cursor.execute("""
-                SELECT id FROM features 
-                WHERE id NOT IN (SELECT feature_id FROM sessions)
+                SELECT id FROM projects 
+                WHERE id NOT IN (SELECT project_id FROM sessions)
                 ORDER BY id ASC
                 LIMIT 1
             """)
@@ -466,12 +465,12 @@ class EmmDatabase:
                 conn.rollback()
                 return None
                 
-            feature_id = row['id']
+            project_id = row['id']
             
             # Create the session
             cursor.execute(
-                "INSERT INTO sessions (feature_id, max_iterations) VALUES (?, ?)",
-                (feature_id, max_iterations)
+                "INSERT INTO sessions (project_id, max_iterations) VALUES (?, ?)",
+                (project_id, max_iterations)
             )
             session_id = cursor.lastrowid
             

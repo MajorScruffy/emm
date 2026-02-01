@@ -1,22 +1,22 @@
 ---
-name: feature
-description: "Generate a Feature Requirements Document for a new feature. Use when planning a feature, starting a new project, or when asked to create a Feature. Triggers on: create a feature, write feature for, plan this feature, requirements for, spec out."
+name: project
+description: "Generate a Project Requirements Document for a new project. Use when planning a project, starting a new initiative, or when asked to create a Project. Triggers on: create a project, write project for, plan this project, requirements for, spec out."
 ---
 
-# Feature Generator
+# Project Generator
 
-Create detailed Feature Requirements Documents that are clear, actionable, and suitable for implementation.
+Create detailed Project Requirements Documents that are clear, actionable, and suitable for implementation.
 
 ---
 
 ## The Job
 
-1. Receive a feature description from the user
+1. Receive a project description from the user
 2. Ask 3-5 essential clarifying questions (with lettered options)
-3. Generate a structured Feature based on answers
-4. Save to `.features/feature-[feature-name].md`
+3. Generate a structured Project based on answers
+4. Save to `.projects/[project-name].md`
 
-**Important:** Do NOT start implementing. Just create the Feature.
+**Important:** Do NOT start implementing. Just create the Project PRD.
 
 ---
 
@@ -32,7 +32,7 @@ Ask only critical questions where the initial prompt is ambiguous. Focus on:
 ### Format Questions Like This:
 
 ```
-1. What is the primary goal of this feature?
+1. What is the primary goal of this project?
    A. Improve user onboarding experience
    B. Increase user retention
    C. Reduce support burden
@@ -55,12 +55,12 @@ This lets users respond with "1A, 2C, 3B" for quick iteration.
 
 ---
 
-## Step 2: Feature Structure
+## Step 2: Project Structure
 
-Generate the Feature with these sections:
+Generate the Project with these sections:
 
 ### 1. Introduction/Overview
-Brief description of the feature and the problem it solves.
+Brief description of the project and the problem it solves.
 
 ### 2. Goals
 Specific, measurable objectives (bullet list).
@@ -68,7 +68,7 @@ Specific, measurable objectives (bullet list).
 ### 3. Tasks
 Each task needs:
 - **Title:** Short descriptive name
-- **Description:** "As a [user], I want [feature] so that [benefit]"
+- **Description:** "As a [user], I want [functionality] so that [benefit]"
 - **Acceptance Criteria:** Verifiable checklist of what "done" means
 
 Each task should be small enough to implement in one focused session.
@@ -76,7 +76,7 @@ Each task should be small enough to implement in one focused session.
 **Format:**
 ```markdown
 ### US-001: [Title]
-**Description:** As a [user], I want [feature] so that [benefit].
+**Description:** As a [user], I want [functionality] so that [benefit].
 
 **Acceptance Criteria:**
 - [ ] Specific verifiable criterion
@@ -97,7 +97,7 @@ Numbered list of specific functionalities:
 Be explicit and unambiguous.
 
 ### 5. Non-Goals (Out of Scope)
-What this feature will NOT include. Critical for managing scope.
+What this project will NOT include. Critical for managing scope.
 
 ### 6. Design Considerations (Optional)
 - UI/UX requirements
@@ -134,15 +134,15 @@ The PRD reader may be a junior developer or AI agent. Therefore:
 ## Output
 
 - **Format:** Markdown (`.md`)
-- **Location:** `.features/`
-- **Filename:** `feature-[feature-name].md` (kebab-case)
+- **Location:** `.projects/`
+- **Filename:** `[project-name].md` (kebab-case)
 
 ---
 
 ## Example PRD
 
 ```markdown
-# Feature: Task Priority System
+# Project: Task Priority System
 
 ## Introduction
 
@@ -237,4 +237,4 @@ Before saving the PRD:
 - [ ] User stories are small and specific
 - [ ] Functional requirements are numbered and unambiguous
 - [ ] Non-goals section defines clear boundaries
-- [ ] Saved to `.features/feature-[feature-name].md`
+- [ ] Saved to `.projects/[project-name].md`
