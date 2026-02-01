@@ -11,6 +11,7 @@ import contextlib
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Generator
 from datetime import datetime
+from emm.config import MIGRATIONS_DIR
 
 
 class EmmDatabase:
@@ -48,99 +49,54 @@ class EmmDatabase:
             conn.close()
             
     def initialize_database(self) -> None:
-        """Create database with all required tables and indexes."""
+        """Create database schema via migrations."""
+        self.run_migrations()
+        
+    def run_migrations(self) -> None:
+        """Run pending SQL migrations."""
+        if not MIGRATIONS_DIR.exists():
+            print(f"Migrations directory not found: {MIGRATIONS_DIR}")
+            return
+
         with self.connection() as conn:
             cursor = conn.cursor()
-            self._create_tables(cursor)
-            self._create_indexes(cursor)
             
-    def _create_tables(self, cursor: sqlite3.Cursor) -> None:
-        """Create all required tables."""
-        # Projects table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS projects (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content TEXT NOT NULL,
-                hash TEXT NOT NULL,
-                name TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Sessions table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                project_id INTEGER NOT NULL,
-                max_iterations INTEGER NOT NULL,
-                tool TEXT DEFAULT 'opencode',
-                status TEXT DEFAULT 'running',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at TIMESTAMP NULL,
-                total_iterations INTEGER DEFAULT 0,
-                total_tasks INTEGER DEFAULT 0,
-                completed_tasks INTEGER DEFAULT 0,
-                FOREIGN KEY (project_id) REFERENCES projects(id)
-            )
-        """)
-        
-        # Tasks table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER NOT NULL,
-                branch_name TEXT,
-                task_id TEXT NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT NOT NULL,
-                acceptance_criteria TEXT NOT NULL,
-                status TEXT DEFAULT 'pending',
-                started_at TIMESTAMP NULL,
-                completed_at TIMESTAMP NULL,
-                FOREIGN KEY (session_id) REFERENCES sessions(id)
-            )
-        """)
-        
-        # Iterations table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS iterations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER NOT NULL,
-                iteration_number INTEGER NOT NULL,
-                task_id_worked_on TEXT,
-                status TEXT DEFAULT 'running',
-                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at TIMESTAMP NULL,
-                opencode_output TEXT,
-                opencode_stderr TEXT,
-                FOREIGN KEY (session_id) REFERENCES sessions(id)
-            )
-        """)
-        
-        # Console Logs table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS console_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER NOT NULL,
-                iteration_number INTEGER NULL,
-                log_level TEXT DEFAULT 'info',
-                message TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (session_id) REFERENCES sessions(id)
-            )
-        """)
-        
-    def _create_indexes(self, cursor: sqlite3.Cursor) -> None:
-        """Create performance indexes."""
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tasks_session_status 
-            ON tasks(session_id, status)
-        """)
-        
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_iterations_session 
-            ON iterations(session_id, iteration_number)
-        """)
+            # Ensure migration tracking table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    migration_name TEXT UNIQUE NOT NULL,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Find and apply new migrations
+            for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+                migration_name = sql_file.name
+                
+                # Check if applied
+                cursor.execute(
+                    "SELECT 1 FROM schema_migrations WHERE migration_name = ?", 
+                    (migration_name,)
+                )
+                if cursor.fetchone():
+                    continue
+                    
+                print(f"Applying migration: {migration_name}")
+                
+                # Apply migration
+                try:
+                    script = sql_file.read_text()
+                    conn.executescript(script)
+                    
+                    cursor.execute(
+                        "INSERT INTO schema_migrations (migration_name) VALUES (?)",
+                        (migration_name,)
+                    )
+                except Exception as e:
+                    print(f"Migration failed {migration_name}: {e}")
+                    raise
+            
 
     # --- Projects ---
  

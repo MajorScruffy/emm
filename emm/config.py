@@ -9,6 +9,7 @@ PACKAGE_DIR = Path(__file__).parent.resolve()
 ROOT_DIR = PACKAGE_DIR.parent
 DATA_DIR = ROOT_DIR / "scripts" / "data"
 ARCHIVE_DIR = ROOT_DIR / "scripts" / "archive"
+MIGRATIONS_DIR = PACKAGE_DIR / "migrations"
 
 # Database
 DB_NAME = "emm.db"
