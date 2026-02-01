@@ -28,6 +28,19 @@ class EmmAgent:
         with self.log.status_indicator(f"Running opencode...", f"opencode completed"):
             return self.runner.run_opencode()
 
+    def ingest_pending_projects(self):
+        """Scan .projects directory and ingest new projects."""
+        if not config.PROJECTS_DIR.exists():
+            return
+
+        for project_file in sorted(config.PROJECTS_DIR.glob("*.json")):
+            try:
+                # We let the database handle deduplication via hash check
+                self.log.info(f"Ingesting project: {project_file.name}")
+                self.db.create_project(str(project_file))
+            except Exception as e:
+                self.log.error(f"Failed to ingest {project_file.name}: {e}")
+
     def _init_session(self):
         """Initialize or resume a session."""
         if self.resume:
@@ -40,6 +53,9 @@ class EmmAgent:
                 self.log.error("No sessions found to resume.")
                 sys.exit(1)
 
+        # Ingest any new projects found on disk
+        self.ingest_pending_projects()
+        
         self.session_id = self.db.claim_next_available_project(self.max_iterations)
         
         if not self.session_id:

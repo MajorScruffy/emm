@@ -11,7 +11,7 @@ Converts existing Projects to the project.json format that emm uses for autonomo
 
 ## The Job
 
-Take a Project (markdown file or text) and convert it to `project.json` in your emm directory.
+Take a Project (markdown file or text) and convert it to `[project-name].json` in your emm directory.
 
 ---
 
@@ -240,7 +240,7 @@ Add ability to mark tasks with different statuses.
    - Copy current `project.json` and `progress.txt` to archive
    - Reset `progress.txt` with fresh header
 
-**The emm.sh script handles this automatically** when you run it, but if you are manually updating project.json between runs, archive first.
+**The emm.sh script handles this automatically** when you run it, but if you are manually updating the json file between runs, archive first.
 
 ---
 
@@ -248,7 +248,7 @@ Add ability to mark tasks with different statuses.
 
 Before writing project.json, verify:
 
-- [ ] **Previous run archived** (if project.json exists with different branchName, archive it first)
+- [ ] **Previous run archived** (if [project-name].json exists with different branchName, archive it first)
 - [ ] Each task is completable in one iteration (small enough)
 - [ ] Tasks are ordered by dependency (schema to backend to UI)
 - [ ] Every task has "Typecheck passes" as criterion

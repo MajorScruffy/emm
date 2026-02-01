@@ -116,6 +116,13 @@ class EmmDatabase:
         
         with self.connection() as conn:
             cursor = conn.cursor()
+            
+            # Check for existing project with same hash
+            cursor.execute("SELECT id FROM projects WHERE hash = ?", (hash_value,))
+            row = cursor.fetchone()
+            if row:
+                return row['id']
+
             cursor.execute(
                 "INSERT INTO projects (content, hash, name) VALUES (?, ?, ?)",
                 (content, hash_value, name)
