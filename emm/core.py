@@ -23,10 +23,10 @@ class EmmAgent:
         self.session_id: Optional[int] = None
         self.iteration: int = 0
 
-    def run_ai_tool(self) -> str:
-        """Execute the AI tool with status indicator."""
+    def run_ai_tool(self, task: Optional[dict] = None) -> str:
+        """Execute the AI tool with status indicator and context."""
         with self.log.status_indicator(f"Running opencode...", f"opencode completed"):
-            return self.runner.run_opencode()
+            return self.runner.run_opencode(task)
 
     def ingest_pending_projects(self):
         """Scan .projects directory and ingest new projects."""
@@ -99,7 +99,7 @@ class EmmAgent:
         self.log.info(f"Starting iteration {iteration} (Task: {task_id})")
 
         iter_id = self.db.create_iteration(self.session_id, iteration, task_id)
-        output = self.run_ai_tool()
+        output = self.run_ai_tool(current_task)
         self.db.update_iteration(iter_id, output, "")
 
         if output and config.COMPLETION_TAG in output:

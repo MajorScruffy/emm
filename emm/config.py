@@ -24,8 +24,7 @@ COMMAND_TIMEOUT = 300  # seconds
 COMPLETION_TAG = "<promise>COMPLETE</promise>"
 
 # Files
-PROMPT_FILE = ROOT_DIR / "scripts" / "prompt.md"
-CLAUDE_FILE = ROOT_DIR / "scripts" / "CLAUDE.md"
+PROMPT_FILE = PACKAGE_DIR / "prompts" / "system.md"
 PRD_FILE = ROOT_DIR / "scripts" / "prd.json"
 PROJECTS_DIR = ROOT_DIR / ".projects"
 
