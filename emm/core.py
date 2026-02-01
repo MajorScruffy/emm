@@ -2,7 +2,7 @@ from typing import Optional, Any
 from emm.database import EmmDatabase
 from emm.parser import FeatureParser
 from emm.runners import ToolRunner
-from emm.logger import DualLogger
+from emm.logger import DualLogger, RICH_AVAILABLE
 from emm import config
 import sys
 
@@ -62,8 +62,11 @@ class EmmAgent:
         columns = ["Task ID", "Title", "Status"]
         rows = []
         for t in tasks:
-            color = "green" if t['status'] == 'completed' else "yellow" if t['status'] == 'in_progress' else "white"
-            rows.append([t['task_id'], t['title'], f"[{color}]{t['status']}[/{color}]"])
+            status = t['status']
+            if RICH_AVAILABLE:
+                color = "green" if status == 'completed' else "yellow" if status == 'in_progress' else "white"
+                status = f"[{color}]{status}[/{color}]"
+            rows.append([t['task_id'], t['title'], status])
 
         self.log.table(title=f"Session {self.session_id} Tasks", columns=columns, rows=rows)
 

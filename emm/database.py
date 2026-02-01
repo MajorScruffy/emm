@@ -124,7 +124,6 @@ class EmmDatabase:
                 session_id INTEGER NOT NULL,
                 iteration_number INTEGER NULL,
                 log_level TEXT DEFAULT 'info',
-                component TEXT,
                 message TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (session_id) REFERENCES sessions(id)
@@ -414,22 +413,21 @@ class EmmDatabase:
     # --- Logging ---
 
     def log_message(self, session_id: int, iteration_number: Optional[int], 
-                    level: str, component: str, message: str) -> None:
+                    level: str, message: str) -> None:
         """Log a console message to the database.
         
         Args:
             session_id: The session ID.
             iteration_number: The current iteration number (optional).
             level: Log level (info, warning, error, etc).
-            component: The component generating the log (e.g. 'agent', 'tool').
             message: The log message content.
         """
         with self.connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO console_logs (session_id, iteration_number, log_level, component, message)
-                VALUES (?, ?, ?, ?, ?)
-            """, (session_id, iteration_number, level, component, message))
+                INSERT INTO console_logs (session_id, iteration_number, log_level, message)
+                VALUES (?, ?, ?, ?)
+            """, (session_id, iteration_number, level, message))
 
     def claim_next_available_feature(self, max_iterations: int) -> Optional[int]:
         """Atomically find the next unclaimed feature and create a session for it.

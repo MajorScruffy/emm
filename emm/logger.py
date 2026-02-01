@@ -27,8 +27,11 @@ class EmmConsoleHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            style = self.styles.get(record.levelname, "white")
-            self.console.print(f"[{style}]{msg}[/{style}]")
+            if RICH_AVAILABLE:
+                style = self.styles.get(record.levelname, "white")
+                self.console.print(f"[{style}]{msg}[/{style}]")
+            else:
+                self.console.print(msg)
         except Exception:
             self.handleError(record)
 
@@ -45,12 +48,10 @@ class EmmDatabaseHandler(logging.Handler):
         try:
             msg = self.format(record)
             level = record.levelname.lower()
-            # Default to 'agent' component for general logging
             self.db.log_message(
                 self.logger_proxy.session_id, 
                 self.logger_proxy.iteration, 
                 level, 
-                "agent", 
                 msg
             )
         except Exception:
@@ -152,9 +153,9 @@ class DualLogger:
                 yield
                 progress.update(task, description=end_msg)
         else:
-            self.console.print(f"[cyan]{start_msg}[/cyan]")
+            self.console.print(start_msg)
             yield
-            self.console.print(f"[cyan]{end_msg}[/cyan]")
+            self.console.print(end_msg)
 
         self.info(end_msg)
 

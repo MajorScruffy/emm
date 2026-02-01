@@ -117,12 +117,12 @@ class TestEmmDatabase(unittest.TestCase):
         feature_id = self.db.create_feature(self.feature_path)
         session_id = self.db.create_session(feature_id, 10)
         
-        self.db.log_message(session_id, 1, 'info', 'test', 'message')
+        self.db.log_message(session_id, 1, 'info', 'message')
         
         with self.db.connection() as conn:
             row = conn.execute("SELECT * FROM console_logs WHERE session_id = ?", (session_id,)).fetchone()
             self.assertEqual(row['message'], 'message')
-            self.assertEqual(row['component'], 'test')
+            self.assertEqual(row['log_level'], 'info')
 
 if __name__ == '__main__':
     unittest.main()
