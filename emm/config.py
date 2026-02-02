@@ -11,9 +11,10 @@ DATA_DIR = ROOT_DIR / "scripts" / "data"
 ARCHIVE_DIR = ROOT_DIR / "scripts" / "archive"
 MIGRATIONS_DIR = PACKAGE_DIR / "migrations"
 
+import os
 # Database
 DB_NAME = "emm.db"
-DB_PATH = DATA_DIR / DB_NAME
+DB_PATH = Path(os.getenv("EMM_DB_PATH", DATA_DIR / DB_NAME))
 
 # Tool Defaults
 DEFAULT_TOOL = "opencode"
@@ -26,7 +27,7 @@ COMPLETION_TAG = "<promise>COMPLETE</promise>"
 # Files
 PROMPT_FILE = PACKAGE_DIR / "prompts" / "system.md"
 PRD_FILE = ROOT_DIR / "scripts" / "prd.json"
-PROJECTS_DIR = ROOT_DIR / ".projects"
+PROJECTS_DIR = Path(os.getenv("EMM_PROJECTS_DIR", ROOT_DIR / ".projects"))
 
 def ensure_dirs():
     """Ensure necessary directories exist."""

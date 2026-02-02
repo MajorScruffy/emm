@@ -254,6 +254,22 @@ class EmmDatabase:
                 task_data['description'],
                 acceptance_criteria_json
             ))
+            return cursor.lastrowid
+
+    def get_highest_task_id(self, session_id: int) -> int:
+        """Get the highest integer task ID assigned in a session.
+        Useful for generating the next sequential ID (e.g., 004 -> 005).
+        """
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT task_id FROM tasks WHERE session_id = ? ORDER BY task_id DESC LIMIT 1", (session_id,))
+            row = cursor.fetchone()
+            if not row:
+                return 0
+            try:
+                return int(row['task_id'])
+            except (ValueError, TypeError):
+                return 0
     
     def get_tasks(self, session_id: int) -> List[Dict[str, Any]]:
         """Retrieve all tasks for a specific session.
@@ -372,6 +388,17 @@ class EmmDatabase:
                     completed_at = CURRENT_TIMESTAMP, status = 'completed'
                 WHERE id = ?
             """, (output, stderr, iteration_id))
+
+    def get_iterations_for_task(self, session_id: int, task_id: str) -> List[Dict[str, Any]]:
+        """Retrieve all iterations for a specific task."""
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM iterations 
+                WHERE session_id = ? AND task_id_worked_on = ?
+                ORDER BY iteration_number ASC
+            """, (session_id, task_id))
+            return [dict(row) for row in cursor.fetchall()]
 
     # --- Logging ---
 

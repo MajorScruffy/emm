@@ -14,7 +14,7 @@ class ToolRunner:
         """
         self.log = log
 
-    def run_shell(self, cmd: List[str], stdin_str: Optional[str] = None, timeout: int = config.COMMAND_TIMEOUT) -> str:
+    def run_shell(self, cmd: List[str], stdin_str: Optional[str] = None, timeout: int = config.COMMAND_TIMEOUT, cwd: Optional[Path] = None) -> str:
         """Execute a shell command and return output."""
         try:
             result = subprocess.run(
@@ -23,6 +23,7 @@ class ToolRunner:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                cwd=cwd,
             )
             
             # Display output
@@ -40,7 +41,7 @@ class ToolRunner:
             self.log.error(f"Error running command {cmd}: {e}")
             return f"ERROR: {e}"
 
-    def run_opencode(self, task: Optional[Dict] = None) -> str:
+    def run_opencode(self, task: Optional[Dict] = None, cwd: Optional[Path] = None) -> str:
         """Run the opencode tool with context."""
         opencode_cmd = ["opencode"]
         
@@ -64,4 +65,4 @@ ACCEPTANCE CRITERIA:
             
             prompt_content += task_context
 
-        return self.run_shell(opencode_cmd, stdin_str=prompt_content)
+        return self.run_shell(opencode_cmd, stdin_str=prompt_content, cwd=cwd)

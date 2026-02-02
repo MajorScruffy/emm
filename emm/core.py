@@ -1,17 +1,20 @@
 from typing import Optional, Any
+import json
+import sys
+from pathlib import Path
 from emm.database import EmmDatabase
 from emm.parser import ProjectParser
 from emm.runners import ToolRunner
 from emm.logger import DualLogger, RICH_AVAILABLE
 from emm import config
-import sys
+from emm.git_utils import WorktreeManager
 
 
 class EmmAgent:
     """Long-running AI agent automation tool with Dependency Injection."""
 
     def __init__(self, db: EmmDatabase, log: DualLogger, max_iterations: int = config.DEFAULT_ITERATIONS, 
-                 project_path: Optional[str] = None, resume: bool = False):
+                 project_path: Optional[str] = None, resume: bool = False, work_dir: Optional[Path] = None):
         """Initialize the agent with injected dependencies."""
         self.db = db
         self.log = log
@@ -20,13 +23,15 @@ class EmmAgent:
         self.resume = resume
         
         self.runner = ToolRunner(log=self.log)
+        self.worktree_manager = WorktreeManager(log=self.log, base_dir=work_dir if work_dir else config.ROOT_DIR)
+        self.worktree_path: Optional[Path] = None
         self.session_id: Optional[int] = None
         self.iteration: int = 0
 
     def run_ai_tool(self, task: Optional[dict] = None) -> str:
         """Execute the AI tool with status indicator and context."""
         with self.log.status_indicator(f"Running opencode...", f"opencode completed"):
-            return self.runner.run_opencode(task)
+            return self.runner.run_opencode(task, cwd=self.worktree_path)
 
     def ingest_pending_projects(self):
         """Scan .projects directory and ingest new projects."""
@@ -63,6 +68,29 @@ class EmmAgent:
             sys.exit(0)
             
         self.log.set_session_id(self.session_id)
+        
+        # Populate initial tasks from project data
+        project_data = self.db.get_project(self.db.get_session(self.session_id)['project_id'])
+        try:
+            content = json.loads(project_data['content'])
+            for task_data in content.get('tasks', []):
+                # Ensure branchName is present at task level for database consistency if needed
+                if 'branchName' not in task_data and 'branchName' in content:
+                    task_data['branchName'] = content['branchName']
+                self.db.create_task(self.session_id, task_data)
+        except Exception as e:
+            self.log.error(f"Failed to populate tasks for session {self.session_id}: {e}")
+
+        # Setup Worktree
+        self.worktree_path = self.worktree_manager.create_worktree(self.session_id)
+        if not self.worktree_path:
+            self.log.error("Failed to create worktree. Exiting.")
+            sys.exit(1)
+            
+        # Write session metadata for CLI tools
+        with open(self.worktree_path / ".session.json", "w") as f:
+            json.dump({"session_id": self.session_id}, f)
+
         self.log.info(f"Claimed project and started session {self.session_id}")
 
     def display_tasks_table(self):

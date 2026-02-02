@@ -60,10 +60,10 @@ class TestUS4Tools(unittest.TestCase):
         with patch('emm.runners.Path.exists', return_value=True):
             self.agent.runner.run_opencode()
             
-        # Verify it was called with some Path object as stdin_file
+        # Verify it was called with stdin_str
         args, kwargs = mock_shell.call_args
-        self.assertIn('stdin_file', kwargs)
-        self.assertIsInstance(kwargs['stdin_file'], Path)
+        self.assertIn('stdin_str', kwargs)
+        self.assertIsInstance(kwargs['stdin_str'], str)
 
 if __name__ == "__main__":
     unittest.main()
