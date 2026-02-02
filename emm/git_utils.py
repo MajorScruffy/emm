@@ -14,7 +14,7 @@ class WorktreeManager:
         self.worktrees_dir = base_dir / "worktrees"
         self.worktrees_dir.mkdir(exist_ok=True)
 
-    def _run_git(self, args: List[str]) -> bool:
+    def _run_git(self, args: List[str], quiet: bool = False) -> bool:
         """Run a git command."""
         try:
             subprocess.run(
@@ -26,7 +26,8 @@ class WorktreeManager:
             )
             return True
         except subprocess.CalledProcessError as e:
-            self.log.error(f"Git command failed: git {' '.join(args)}\nError: {e.stderr}")
+            if not quiet:
+                self.log.error(f"Git command failed: git {' '.join(args)}\nError: {e.stderr}")
             return False
 
     def get_worktree_path(self, session_id: int) -> Path:
@@ -56,7 +57,7 @@ class WorktreeManager:
                 else:
                     # Detached HEAD or other issue, try to find main/master
                     for b in ["main", "master"]:
-                        if self._run_git(["rev-parse", "--verify", b]):
+                        if self._run_git(["rev-parse", "--verify", b], quiet=True):
                             base_branch = b
                             break
                     if not base_branch:
@@ -66,11 +67,20 @@ class WorktreeManager:
 
         branch_name = f"emm/session-{session_id}"
         
+        # Check if branch already exists
+        branch_exists = self._run_git(["rev-parse", "--verify", branch_name], quiet=True)
+
         self.log.info(f"Creating worktree for session {session_id} at {path} (from {base_branch})")
         
-        # Create worktree and new branch
-        if self._run_git(["worktree", "add", "-b", branch_name, str(path), base_branch]):
-            return path
+        # Create worktree. Use -b only if it doesn't exist.
+        if branch_exists:
+            # Reusing existing branch
+            if self._run_git(["worktree", "add", str(path), branch_name]):
+                return path
+        else:
+            # Creating new branch
+            if self._run_git(["worktree", "add", "-b", branch_name, str(path), base_branch]):
+                return path
         
         return None
 
@@ -96,7 +106,3 @@ class WorktreeManager:
         # Prune again after removal
         self._run_git(["worktree", "prune"])
 
-    def list_worktrees(self) -> List[str]:
-        """List active worktrees."""
-        # Simple implementation, reading from git worktree list could be parsed if needed
-        return [p.name for p in self.worktrees_dir.iterdir() if p.is_dir()]

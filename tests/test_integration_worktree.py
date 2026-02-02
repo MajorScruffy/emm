@@ -1,5 +1,4 @@
-
-import unittest
+import unittest, tempfile
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 from emm.core import EmmAgent
@@ -16,19 +15,17 @@ class TestWorktreeIntegration(unittest.TestCase):
     @patch('emm.core.ToolRunner')
     @patch('emm.core.config.PROJECTS_DIR')
     def test_worktree_creation_and_usage(self, mock_projects_dir, MockRunner, MockManager):
-        # Setup Mocks
-        mock_projects_dir.exists.return_value = False # Skip ingestion
-        
+        mock_projects_dir.exists.return_value = False
         mock_manager_instance = MockManager.return_value
-        expected_path = Path("/tmp/worktrees/session-123")
+        expected_path = Path(tempfile.mkdtemp())
         mock_manager_instance.create_worktree.return_value = expected_path
-        
         mock_runner_instance = MockRunner.return_value
         
         # Init Agent
-        with patch('builtins.open', MagicMock()):
-            agent = EmmAgent(self.db, self.log)
-            agent._init_session()
+        agent = EmmAgent(self.db, self.log)
+        self.db.get_session.return_value = {'project_id': 1}
+        self.db.get_project.return_value = {'content': '{"tasks":[]}'}
+        agent._init_session()
         
         # Verify Worktree Creation
         mock_manager_instance.create_worktree.assert_called_with(123)

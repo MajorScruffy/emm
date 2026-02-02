@@ -56,10 +56,9 @@ class TestUS3Loop(unittest.TestCase):
         """US3.3: Assert session marked as failed when max iterations reached."""
         mock_iter.return_value = False # Never completes
         
-        with patch('emm.core.config.ensure_dirs'):
-            with patch.object(self.agent, '_init_session'):
-                with patch.object(self.agent, 'display_tasks_table'):
-                    result = self.agent.run()
+        with patch.object(self.agent, '_init_session'):
+            with patch.object(self.agent, 'display_tasks_table'):
+                result = self.agent.run()
         
         self.assertEqual(result, 1)
         self.mock_db.update_session_status.assert_called_with(123, 'failed')
@@ -69,10 +68,9 @@ class TestUS3Loop(unittest.TestCase):
         """US3.4: Assert session marked as interrupted on KeyboardInterrupt."""
         mock_iter.side_effect = KeyboardInterrupt()
         
-        with patch('emm.core.config.ensure_dirs'):
-            with patch.object(self.agent, '_init_session'):
-                with patch.object(self.agent, 'display_tasks_table'):
-                    result = self.agent.run()
+        with patch.object(self.agent, '_init_session'):
+            with patch.object(self.agent, 'display_tasks_table'):
+                result = self.agent.run()
         
         self.assertEqual(result, 130)
         self.mock_db.update_session_status.assert_called_with(123, 'interrupted')

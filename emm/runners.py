@@ -41,28 +41,23 @@ class ToolRunner:
             self.log.error(f"Error running command {cmd}: {e}")
             return f"ERROR: {e}"
 
-    def run_opencode(self, task: Optional[Dict] = None, cwd: Optional[Path] = None) -> str:
-        """Run the opencode tool with context."""
-        opencode_cmd = ["opencode"]
-        
-        # 1. Load System Prompt
+    def _build_prompt(self, task: Optional[Dict] = None) -> str:
+        """Construct the system prompt with optional task context."""
         if not config.PROMPT_FILE.exists():
             return f"ERROR: System prompt not found at {config.PROMPT_FILE}"
         
-        prompt_content = config.PROMPT_FILE.read_text()
-        
-        # 2. Inject Task Context (if available)
+        prompt = config.PROMPT_FILE.read_text()
         if task:
-            task_context = f"""
-\n\n--- CURRENT TASK: {task.get('task_id', 'Unknown')} ---
-TITLE: {task.get('title', 'No Title')}
-DESCRIPTION: {task.get('description', '')}
-
-ACCEPTANCE CRITERIA:
-"""
+            prompt += f"\n\n--- CURRENT TASK: {task.get('task_id', 'Unknown')} ---\n"
+            prompt += f"TITLE: {task.get('title', 'No Title')}\n"
+            prompt += f"DESCRIPTION: {task.get('description', '')}\n\nACCEPTANCE CRITERIA:\n"
             for criteria in task.get('acceptance_criteria', []):
-                task_context += f"- [ ] {criteria}\n"
-            
-            prompt_content += task_context
+                prompt += f"- [ ] {criteria}\n"
+        return prompt
 
-        return self.run_shell(opencode_cmd, stdin_str=prompt_content, cwd=cwd)
+    def run_opencode(self, task: Optional[Dict] = None, cwd: Optional[Path] = None) -> str:
+        """Run the opencode tool with context."""
+        prompt = self._build_prompt(task)
+        if prompt.startswith("ERROR:"):
+            return prompt
+        return self.run_shell(["opencode"], stdin_str=prompt, cwd=cwd)

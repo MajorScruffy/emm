@@ -29,7 +29,3 @@ PROMPT_FILE = PACKAGE_DIR / "prompts" / "system.md"
 PRD_FILE = ROOT_DIR / "scripts" / "prd.json"
 PROJECTS_DIR = Path(os.getenv("EMM_PROJECTS_DIR", ROOT_DIR / ".projects"))
 
-def ensure_dirs():
-    """Ensure necessary directories exist."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)

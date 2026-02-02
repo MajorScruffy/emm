@@ -23,7 +23,6 @@ class TestEmmDatabase(unittest.TestCase):
         self.db.initialize_database()
 
     def tearDown(self):
-        self.db.close()
         shutil.rmtree(self.test_dir)
 
     def test_initialize_database(self):

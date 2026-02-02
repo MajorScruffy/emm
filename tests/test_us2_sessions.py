@@ -21,6 +21,8 @@ class TestUS2Sessions(unittest.TestCase):
     def test_fresh_session_start(self):
         """US2.1: Assert fresh session start via claiming."""
         self.mock_db.claim_next_available_project.return_value = 100
+        self.mock_db.get_session.return_value = {'project_id': 1}
+        self.mock_db.get_project.return_value = {'content': '{"tasks":[]}'}
         
         self.agent._init_session()
             
@@ -31,6 +33,8 @@ class TestUS2Sessions(unittest.TestCase):
         """US2.2: Assert correct session ID is picked up when --resume is used."""
         self.agent.resume = True
         self.mock_db.get_last_session_id.return_value = 500
+        self.mock_db.get_session.return_value = {'project_id': 1}
+        self.mock_db.get_project.return_value = {'content': '{"tasks":[]}'}
         
         self.agent._init_session()
         

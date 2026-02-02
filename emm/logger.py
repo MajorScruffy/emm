@@ -1,6 +1,5 @@
 from typing import Optional, Any, List, Dict
 from contextlib import contextmanager
-import sys
 import logging
 
 try:
@@ -11,160 +10,66 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-# 2. Handlers
 class EmmConsoleHandler(logging.Handler):
-    """Handler for formatted console output (Rich or Simple)."""
+    def emit(self, record):
+        message = self.format(record)
+        if RICH_AVAILABLE:
+            style = {"INFO": "cyan", "ERROR": "bold red", "WARNING": "bold yellow"}.get(record.levelname, "white")
+            self.console.print(f"[{style}]{message}[/{style}]")
+        else: self.console.print(message)
+
     def __init__(self, console):
         super().__init__()
         self.console = console
-        self.styles = {
-            "INFO": "cyan",
-            "ERROR": "bold red",
-            "WARNING": "bold yellow",
-            "DEBUG": "dim white"
-        }
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            if RICH_AVAILABLE:
-                style = self.styles.get(record.levelname, "white")
-                self.console.print(f"[{style}]{msg}[/{style}]")
-            else:
-                self.console.print(msg)
-        except Exception:
-            self.handleError(record)
 
 class EmmDatabaseHandler(logging.Handler):
-    """Handler for SQLite database logging."""
-    def __init__(self, db, logger_proxy):
-        super().__init__()
-        self.db = db
-        self.logger_proxy = logger_proxy
-
     def emit(self, record):
-        if not self.db or not self.logger_proxy.session_id:
-            return
-        try:
-            msg = self.format(record)
-            level = record.levelname.lower()
-            self.db.log_message(
-                self.logger_proxy.session_id, 
-                self.logger_proxy.iteration, 
-                level, 
-                msg
-            )
-        except Exception:
-            self.handleError(record)
+        if self.db and self.logger_proxy.session_id:
+            self.db.log_message(self.logger_proxy.session_id, self.logger_proxy.iteration, record.levelname.lower(), self.format(record))
+
+    def __init__(self, db, logger_proxy):
+        super().__init__(); self.db = db; self.logger_proxy = logger_proxy
 
 def get_console():
-    """Factory for console (Rich or Simple)."""
-    if RICH_AVAILABLE:
-        return Console()
-    
-    # Mini-SimpleConsole for consistency
+    if RICH_AVAILABLE: return Console()
     class SimpleConsole:
-        def print(self, m=None, **k): print(m if m else "")
-            
-        def rule(self, t=None, **k):
-            print(f"\n--- {t} ---" if t else "\n----------")
+        def print(self, message=None, **kwargs): print(message or "")
+        def rule(self, title=None, **kwargs): print(f"\n--- {title} ---" if title else "\n----------")
+        @contextmanager
+        def status(self, message, **kwargs):
+            print(message); yield; print(f"{message} done.")
     return SimpleConsole()
 
 class DualLogger:
-    """A logger that wraps standard logging and provides UI extras."""
-
     def __init__(self, console: Optional[Any] = None, db: Optional[Any] = None, session_id: Optional[int] = None):
-        """
-        Args:
-            console: An optional console object. If not provided, one will be created.
-            db: An optional database object with a log_message method.
-            session_id: The current session ID for database logging.
-        """
-        self.console = console if console else get_console()
-        self.db = db
-        self.session_id = session_id
-        self.iteration = 0
+        self.console = console or get_console(); self.db = db; self.session_id = session_id; self.iteration = 0
+        self.logger = logging.getLogger("emm"); self.logger.setLevel(logging.DEBUG); self.logger.propagate = False
+        for handler in self.logger.handlers[:]: self.logger.removeHandler(handler)
+        self.logger.addHandler(EmmConsoleHandler(self.console))
+        self.logger.addHandler(EmmDatabaseHandler(self.db, self))
 
-        # Setup internal standard logger
-        self.logger = logging.getLogger("emm")
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.propagate = False # Avoid double logging if root has handlers
+    def info(self, message): self.logger.info(message)
+    def warning(self, message): self.logger.warning(message)
+    def error(self, message): self.logger.error(message)
+    def debug(self, message): self.logger.debug(message)
 
-        # Remove old handlers if existing (re-init safety)
-        for h in self.logger.handlers[:]:
-            self.logger.removeHandler(h)
+    def set_session_id(self, session_id): self.session_id = session_id
+    def set_iteration(self, iteration): self.iteration = iteration
+    def rule(self, title): self.console.rule(title); self.info(f"--- {title} ---")
 
-        # Add our handlers
-        self.console_handler = EmmConsoleHandler(self.console)
-        self.db_handler = EmmDatabaseHandler(self.db, self)
-        
-        self.logger.addHandler(self.console_handler)
-        self.logger.addHandler(self.db_handler)
-
-    def set_session_id(self, session_id: int):
-        """Update the session ID after it is created/loaded."""
-        self.session_id = session_id
-
-    def set_iteration(self, iteration: int):
-        """Update the current iteration for logging context."""
-        self.iteration = iteration
-
-    # UI Methods
-    def rule(self, text: str):
-        """Display a horizontal rule and log it as info."""
-        self.console.rule(text)
-        self.info(f"--- {text} ---")
-
-    def table(self, title: str, columns: List[str], rows: List[List[str]], header_style: str = "bold magenta"):
-        """Display a formatted table and log a summary."""
+    def table(self, title, columns, rows):
         if RICH_AVAILABLE:
-            table = Table(title=title, show_header=True, header_style=header_style)
-            for col in columns:
-                table.add_column(col)
-            for row in rows:
-                table.add_row(*row)
+            table = Table(title=title, show_header=True, header_style="bold magenta")
+            for column in columns: table.add_column(column)
+            for row in rows: table.add_row(*row)
             self.console.print(table)
-            self.console.print()
         else:
-            print(f"\n--- {title} ---")
-            print(" | ".join(columns))
-            for row in rows:
-                print(" | ".join(row))
-            print()
-            
-        # Log summary
-        summary = f"TABLE: {title}\n" + " | ".join(columns) + "\n"
-        summary += "\n".join([" | ".join(row) for row in rows])
-        self.info(summary)
+            print(f"\n--- {title} ---\n" + " | ".join(columns))
+            for row in rows: print(" | ".join(row))
+        self.info(f"TABLE: {title}\n" + " | ".join(columns) + "\n" + "\n".join([" | ".join(row) for row in rows]))
 
     @contextmanager
-    def status_indicator(self, start_msg: str, end_msg: str):
-        """Context manager for showing a progress status and auditing."""
-        self.info(start_msg)
-            
-        if RICH_AVAILABLE:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=self.console,
-                transient=True,
-            ) as progress:
-                task = progress.add_task(start_msg, total=None)
-                yield
-                progress.update(task, description=end_msg)
-        else:
-            self.console.print(start_msg)
-            yield
-            self.console.print(end_msg)
-
-        self.info(end_msg)
-
-    # Ergonomic Shortcuts (Proxies to standard logging)
-    def info(self, message: str):
-        self.logger.info(message)
-        
-    def warning(self, message: str):
-        self.logger.warning(message)
-        
-    def error(self, message: str):
-        self.logger.error(message)
+    def status_indicator(self, start_message, end_message):
+        self.info(start_message)
+        with self.console.status(start_message): yield
+        self.info(end_message)

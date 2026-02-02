@@ -1,165 +1,94 @@
 from typing import Optional, Any
-import json
-import sys
+import json, sys
 from pathlib import Path
 from emm.database import EmmDatabase
-from emm.parser import ProjectParser
 from emm.runners import ToolRunner
 from emm.logger import DualLogger, RICH_AVAILABLE
 from emm import config
 from emm.git_utils import WorktreeManager
 
-
 class EmmAgent:
-    """Long-running AI agent automation tool with Dependency Injection."""
-
     def __init__(self, db: EmmDatabase, log: DualLogger, max_iterations: int = config.DEFAULT_ITERATIONS, 
                  project_path: Optional[str] = None, resume: bool = False, work_dir: Optional[Path] = None):
-        """Initialize the agent with injected dependencies."""
-        self.db = db
-        self.log = log
-        self.max_iterations = max_iterations
-        self.project_path = project_path
-        self.resume = resume
-        
+        self.db, self.log, self.max_iterations, self.resume = db, log, max_iterations, resume
         self.runner = ToolRunner(log=self.log)
-        self.worktree_manager = WorktreeManager(log=self.log, base_dir=work_dir if work_dir else config.ROOT_DIR)
-        self.worktree_path: Optional[Path] = None
-        self.session_id: Optional[int] = None
-        self.iteration: int = 0
+        self.worktree_manager = WorktreeManager(log=self.log, base_dir=work_dir or config.ROOT_DIR)
+        self.worktree_path = self.session_id = None; self.iteration = 0
 
     def run_ai_tool(self, task: Optional[dict] = None) -> str:
-        """Execute the AI tool with status indicator and context."""
         with self.log.status_indicator(f"Running opencode...", f"opencode completed"):
             return self.runner.run_opencode(task, cwd=self.worktree_path)
 
     def ingest_pending_projects(self):
-        """Scan .projects directory and ingest new projects."""
-        if not config.PROJECTS_DIR.exists():
-            return
-
+        if not config.PROJECTS_DIR.exists(): return
         for project_file in sorted(config.PROJECTS_DIR.glob("*.json")):
             try:
-                # We let the database handle deduplication via hash check
-                self.log.info(f"Ingesting project: {project_file.name}")
+                self.log.info(f"Ingesting: {project_file.name}")
                 self.db.create_project(str(project_file))
             except Exception as e:
                 self.log.error(f"Failed to ingest {project_file.name}: {e}")
 
     def _init_session(self):
-        """Initialize or resume a session."""
         if self.resume:
             self.session_id = self.db.get_last_session_id()
-            if self.session_id:
-                self.log.set_session_id(self.session_id)
-                self.log.info(f"Resuming session {self.session_id}")
-                return
-            else:
-                self.log.error("No sessions found to resume.")
-                sys.exit(1)
+            if not self.session_id: self.log.error("No sessions found to resume."); sys.exit(1)
+            self.log.set_session_id(self.session_id); self.log.info(f"Resuming session {self.session_id}"); return
 
-        # Ingest any new projects found on disk
         self.ingest_pending_projects()
-        
         self.session_id = self.db.claim_next_available_project(self.max_iterations)
-        
-        if not self.session_id:
-            self.log.warning("No unclaimed projects found in database. Exiting.")
-            sys.exit(0)
-            
+        if not self.session_id: self.log.warning("No unclaimed projects found in the database."); sys.exit(0)
         self.log.set_session_id(self.session_id)
         
-        # Populate initial tasks from project data
-        project_data = self.db.get_project(self.db.get_session(self.session_id)['project_id'])
-        try:
-            content = json.loads(project_data['content'])
-            for task_data in content.get('tasks', []):
-                # Ensure branchName is present at task level for database consistency if needed
-                if 'branchName' not in task_data and 'branchName' in content:
-                    task_data['branchName'] = content['branchName']
-                self.db.create_task(self.session_id, task_data)
-        except Exception as e:
-            self.log.error(f"Failed to populate tasks for session {self.session_id}: {e}")
+        session_data = self.db.get_session(self.session_id)
+        project_data = self.db.get_project(session_data['project_id'])
+        content = json.loads(project_data['content'])
+        if not EmmDatabase.validate_project(content): self.log.error("Invalid project format in database."); sys.exit(1)
 
-        # Setup Worktree
+        for task in content.get('tasks', []):
+            if 'branchName' not in task and 'branchName' in content: 
+                task['branchName'] = content['branchName']
+            self.db.create_task(self.session_id, task)
+
         self.worktree_path = self.worktree_manager.create_worktree(self.session_id)
-        if not self.worktree_path:
-            self.log.error("Failed to create worktree. Exiting.")
-            sys.exit(1)
-            
-        # Write session metadata for CLI tools
-        with open(self.worktree_path / ".session.json", "w") as f:
-            json.dump({"session_id": self.session_id}, f)
-
-        self.log.info(f"Claimed project and started session {self.session_id}")
+        if not self.worktree_path: self.log.error("Failed to create worktree."); sys.exit(1)
+        (self.worktree_path / ".session.json").write_text(json.dumps({"session_id": self.session_id}))
+        self.log.info(f"Started session {self.session_id}")
 
     def display_tasks_table(self):
-        """Display a summary table of tasks."""
-        if not self.session_id:
-            return
-
+        if not self.session_id: return
         tasks = self.db.get_tasks(self.session_id)
-        if not tasks:
-            return
+        if not tasks: return
+        rows = [[task['task_id'], task['title'], f"[{{'completed':'green','in_progress':'yellow'}}.get(task['status'],'white')]]{task['status']}[/]" if RICH_AVAILABLE else task['status']] for task in tasks]
+        self.log.table(f"Session {self.session_id} Tasks", ["Task ID", "Title", "Status"], rows)
 
-        columns = ["Task ID", "Title", "Status"]
-        rows = []
-        for t in tasks:
-            status = t['status']
-            if RICH_AVAILABLE:
-                color = "green" if status == 'completed' else "yellow" if status == 'in_progress' else "white"
-                status = f"[{color}]{status}[/{color}]"
-            rows.append([t['task_id'], t['title'], status])
-
-        self.log.table(title=f"Session {self.session_id} Tasks", columns=columns, rows=rows)
-
-    def run_iteration(self, iteration: int) -> bool:
-        """Run a single loop iteration."""
-        self.iteration = iteration
-        self.log.set_iteration(iteration)
+    def run_iteration(self, iteration_number: int) -> bool:
+        self.iteration = iteration_number; self.log.set_iteration(iteration_number)
         current_task = self.db.get_next_task(self.session_id)
         task_id = current_task['task_id'] if current_task else "unknown"
-        
-        if current_task:
-            self.db.update_task_status(self.session_id, task_id, "in_progress")
-
-        self.log.rule(f"Iteration {iteration} | Task: {task_id}")
-        self.log.info(f"Starting iteration {iteration} (Task: {task_id})")
-
-        iter_id = self.db.create_iteration(self.session_id, iteration, task_id)
-        output = self.run_ai_tool(current_task)
-        self.db.update_iteration(iter_id, output, "")
-
+        if current_task: self.db.update_task_status(self.session_id, task_id, "in_progress")
+        self.log.rule(f"Iteration {iteration_number} | Task: {task_id}")
+        iteration_id = self.db.create_iteration(self.session_id, iteration_number, task_id)
+        output = self.run_ai_tool(current_task); self.db.update_iteration(iteration_id, output, "")
         if output and config.COMPLETION_TAG in output:
-            if current_task:
-                self.db.update_task_status(self.session_id, task_id, "completed")
-            self.log.info(f"Task {task_id} completed!")
-            return True
-
+            if current_task: self.db.update_task_status(self.session_id, task_id, "completed")
+            self.log.info(f"Task {task_id} completed!"); return True
         return False
 
     def run(self) -> int:
-        """Main execution loop."""
         self._init_session()
         try:
-            for i in range(1, self.max_iterations + 1):
-                try:
-                    if self.run_iteration(i):
-                        self.db.update_session_status(self.session_id, "completed")
-                        self.log.info("✅ Goal reached!")
-                        return 0
-                except KeyboardInterrupt:
-                    self.log.warning("\nInterrupted by user")
-                    self.db.update_session_status(self.session_id, "interrupted")
-                    return 130
-                except Exception as e:
-                    self.log.error(f"Error in iteration {i}: {e}")
-            
+            for iteration in range(1, self.max_iterations + 1):
+                if self.run_iteration(iteration):
+                    self.db.update_session_status(self.session_id, "completed")
+                    self.log.info("✅ Goal reached!"); return 0
             self.db.update_session_status(self.session_id, "failed")
-            self.log.warning("Max iterations reached.")
+            self.log.warning("Max iterations reached without reaching the goal."); return 1
+        except KeyboardInterrupt:
+            self.log.warning("\nInterrupted by user.")
+            self.db.update_session_status(self.session_id, "interrupted")
+            return 130
+        except Exception as e:
+            self.log.error(f"Error in execution loop: {e}")
             return 1
         finally:
             self.display_tasks_table()
-
-# Missing Path import in the code content above (fix needed)
-from pathlib import Path
