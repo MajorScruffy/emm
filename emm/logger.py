@@ -1,6 +1,6 @@
-from typing import Optional, Any, List, Dict
-from contextlib import contextmanager
 import logging
+from contextlib import contextmanager
+from typing import Any
 
 try:
     from rich.console import Console
@@ -41,7 +41,7 @@ def get_console():
     return SimpleConsole()
 
 class DualLogger:
-    def __init__(self, console: Optional[Any] = None, db: Optional[Any] = None, session_id: Optional[int] = None):
+    def __init__(self, console: Any | None = None, db: Any | None = None, session_id: int | None = None):
         self.console = console or get_console(); self.db = db; self.session_id = session_id; self.iteration = 0
         self.logger = logging.getLogger("emm"); self.logger.setLevel(logging.DEBUG); self.logger.propagate = False
         for handler in self.logger.handlers[:]: self.logger.removeHandler(handler)

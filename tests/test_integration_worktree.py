@@ -1,8 +1,10 @@
-import unittest, tempfile
-from unittest.mock import MagicMock, patch
+import tempfile
+import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from emm.core import EmmAgent
-from emm.config import DEFAULT_ITERATIONS
+
 
 class TestWorktreeIntegration(unittest.TestCase):
     def setUp(self):
@@ -20,17 +22,17 @@ class TestWorktreeIntegration(unittest.TestCase):
         expected_path = Path(tempfile.mkdtemp())
         mock_manager_instance.create_worktree.return_value = expected_path
         mock_runner_instance = MockRunner.return_value
-        
+
         # Init Agent
         agent = EmmAgent(self.db, self.log)
         self.db.get_session.return_value = {'project_id': 1}
         self.db.get_project.return_value = {'content': '{"tasks":[]}'}
         agent._init_session()
-        
+
         # Verify Worktree Creation
         mock_manager_instance.create_worktree.assert_called_with(123)
         self.assertEqual(agent.worktree_path, expected_path)
-        
+
         # Verify Runner usage in run_ai_tool
         agent.run_ai_tool({'id': '1'})
         mock_runner_instance.run_opencode.assert_called_with({'id': '1'}, cwd=expected_path)

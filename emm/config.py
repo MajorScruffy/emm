@@ -12,6 +12,7 @@ ARCHIVE_DIR = ROOT_DIR / "scripts" / "archive"
 MIGRATIONS_DIR = PACKAGE_DIR / "migrations"
 
 import os
+
 # Database
 DB_NAME = "emm.db"
 DB_PATH = Path(os.getenv("EMM_DB_PATH", DATA_DIR / DB_NAME))

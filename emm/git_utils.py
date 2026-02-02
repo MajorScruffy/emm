@@ -1,9 +1,10 @@
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
-from typing import Optional, List
+
 from emm import config
 from emm.logger import DualLogger
+
 
 class WorktreeManager:
     """Manages git worktrees for isolated session execution."""
@@ -14,7 +15,7 @@ class WorktreeManager:
         self.worktrees_dir = base_dir / "worktrees"
         self.worktrees_dir.mkdir(exist_ok=True)
 
-    def _run_git(self, args: List[str], quiet: bool = False) -> bool:
+    def _run_git(self, args: list[str], quiet: bool = False) -> bool:
         """Run a git command."""
         try:
             subprocess.run(
@@ -34,7 +35,7 @@ class WorktreeManager:
         """Get the expected path for a session's worktree."""
         return self.worktrees_dir / f"session-{session_id}"
 
-    def create_worktree(self, session_id: int, base_branch: Optional[str] = None) -> Optional[Path]:
+    def create_worktree(self, session_id: int, base_branch: str | None = None) -> Path | None:
         """Create a new worktree for the session."""
         path = self.get_worktree_path(session_id)
         if path.exists():
@@ -66,12 +67,12 @@ class WorktreeManager:
                 base_branch = "main" # Final fallback
 
         branch_name = f"emm/session-{session_id}"
-        
+
         # Check if branch already exists
         branch_exists = self._run_git(["rev-parse", "--verify", branch_name], quiet=True)
 
         self.log.info(f"Creating worktree for session {session_id} at {path} (from {base_branch})")
-        
+
         # Create worktree. Use -b only if it doesn't exist.
         if branch_exists:
             # Reusing existing branch
@@ -81,13 +82,13 @@ class WorktreeManager:
             # Creating new branch
             if self._run_git(["worktree", "add", "-b", branch_name, str(path), base_branch]):
                 return path
-        
+
         return None
 
     def cleanup_worktree(self, session_id: int):
         """Remove a worktree and prune metadata."""
         path = self.get_worktree_path(session_id)
-        
+
         # Always try to prune first to clean up any messy state
         self._run_git(["worktree", "prune"])
 
@@ -95,14 +96,14 @@ class WorktreeManager:
             return
 
         self.log.info(f"Cleaning up worktree {path}")
-        
+
         # Git worktree removing with --force to handle untracked files
         self._run_git(["worktree", "remove", "--force", str(path)])
-        
+
         # Final safety cleanup
         if path.exists():
             shutil.rmtree(path, ignore_errors=True)
-        
+
         # Prune again after removal
         self._run_git(["worktree", "prune"])
 

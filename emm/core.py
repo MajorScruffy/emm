@@ -1,22 +1,24 @@
-from typing import Optional, Any
-import json, sys
+import json
+import sys
 from pathlib import Path
-from emm.database import EmmDatabase
-from emm.runners import ToolRunner
-from emm.logger import DualLogger, RICH_AVAILABLE
+
 from emm import config
+from emm.database import EmmDatabase
 from emm.git_utils import WorktreeManager
+from emm.logger import RICH_AVAILABLE, DualLogger
+from emm.runners import ToolRunner
+
 
 class EmmAgent:
-    def __init__(self, db: EmmDatabase, log: DualLogger, max_iterations: int = config.DEFAULT_ITERATIONS, 
-                 project_path: Optional[str] = None, resume: bool = False, work_dir: Optional[Path] = None):
+    def __init__(self, db: EmmDatabase, log: DualLogger, max_iterations: int = config.DEFAULT_ITERATIONS,
+                 project_path: str | None = None, resume: bool = False, work_dir: Path | None = None):
         self.db, self.log, self.max_iterations, self.resume = db, log, max_iterations, resume
         self.runner = ToolRunner(log=self.log)
         self.worktree_manager = WorktreeManager(log=self.log, base_dir=work_dir or config.ROOT_DIR)
         self.worktree_path = self.session_id = None; self.iteration = 0
 
-    def run_ai_tool(self, task: Optional[dict] = None) -> str:
-        with self.log.status_indicator(f"Running opencode...", f"opencode completed"):
+    def run_ai_tool(self, task: dict | None = None) -> str:
+        with self.log.status_indicator("Running opencode...", "opencode completed"):
             return self.runner.run_opencode(task, cwd=self.worktree_path)
 
     def ingest_pending_projects(self):
@@ -38,14 +40,14 @@ class EmmAgent:
         self.session_id = self.db.claim_next_available_project(self.max_iterations)
         if not self.session_id: self.log.warning("No unclaimed projects found in the database."); sys.exit(0)
         self.log.set_session_id(self.session_id)
-        
+
         session_data = self.db.get_session(self.session_id)
         project_data = self.db.get_project(session_data['project_id'])
         content = json.loads(project_data['content'])
         if not EmmDatabase.validate_project(content): self.log.error("Invalid project format in database."); sys.exit(1)
 
         for task in content.get('tasks', []):
-            if 'branchName' not in task and 'branchName' in content: 
+            if 'branchName' not in task and 'branchName' in content:
                 task['branchName'] = content['branchName']
             self.db.create_task(self.session_id, task)
 

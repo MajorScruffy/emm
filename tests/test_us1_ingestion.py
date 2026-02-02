@@ -1,8 +1,9 @@
-import unittest
-import json
 import tempfile
+import unittest
 from pathlib import Path
+
 from emm.database import EmmDatabase
+
 
 class TestUS1Ingestion(unittest.TestCase):
     def setUp(self):
@@ -16,10 +17,10 @@ class TestUS1Ingestion(unittest.TestCase):
         """US1.3: Assert we catch missing mandatory fields."""
         # Valid
         self.assertTrue(EmmDatabase.validate_project({"tasks": []}))
-        
+
         # Missing 'tasks'
         self.assertFalse(EmmDatabase.validate_project({"only": "some", "junk": "data"}))
-        
+
         # 'tasks' is not a list
         self.assertFalse(EmmDatabase.validate_project({"tasks": "not a list"}))
 

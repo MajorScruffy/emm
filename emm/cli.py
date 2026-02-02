@@ -1,9 +1,13 @@
-import argparse, sys, json
+import argparse
+import json
+import sys
 from pathlib import Path
+
+from emm import config
 from emm.core import EmmAgent
 from emm.database import EmmDatabase
 from emm.logger import DualLogger
-from emm import config
+
 
 def get_session_context():
     session_file = Path(".session.json")
@@ -58,16 +62,16 @@ def main():
     task_parser = subparsers.add_parser("task", help="Manage tasks")
     task_parser.add_argument("--session", type=int, help="Session ID")
     task_subparsers = task_parser.add_subparsers(dest="task_command")
-    
+
     create_parser = task_subparsers.add_parser("create", help="Create a follow-up task")
     create_parser.add_argument("--title", required=True)
     create_parser.add_argument("--description", required=True)
     create_parser.add_argument("--criteria", nargs="*")
-    
+
     update_parser = task_subparsers.add_parser("update", help="Update task status")
     update_parser.add_argument("task_id", help="Task ID (e.g. 001)")
     update_parser.add_argument("status", choices=["pending", "in_progress", "completed", "failed"])
-    
+
     history_parser = task_subparsers.add_parser("history", help="Show task history")
     history_parser.add_argument("task_id")
     task_parser.set_defaults(func=cmd_task)

@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from emm.core import EmmAgent
+
 
 class TestUS3Loop(unittest.TestCase):
     def setUp(self):
@@ -8,10 +10,10 @@ class TestUS3Loop(unittest.TestCase):
         self.mock_console = MagicMock()
         self.mock_logger = MagicMock()
         self.mock_logger.console = self.mock_console
-        
+
         self.agent = EmmAgent(
-            db=self.mock_db, 
-            log=self.mock_logger, 
+            db=self.mock_db,
+            log=self.mock_logger,
             max_iterations=5
         )
         self.agent.session_id = 123
@@ -27,9 +29,9 @@ class TestUS3Loop(unittest.TestCase):
         }
         self.mock_db.create_iteration.return_value = 1
         mock_tool.return_value = "Task done! <promise>COMPLETE</promise>"
-        
+
         result = self.agent.run_iteration(1)
-        
+
         self.assertTrue(result)
         self.mock_db.update_task_status.assert_any_call(123, '001', 'in_progress')
         self.mock_db.update_task_status.assert_any_call(123, '001', 'completed')
@@ -42,9 +44,9 @@ class TestUS3Loop(unittest.TestCase):
             'task_id': '001', 'title': 'Test', 'status': 'pending'
         }
         mock_tool.return_value = "Almost done, but not yet."
-        
+
         result = self.agent.run_iteration(1)
-        
+
         self.assertFalse(result)
         self.mock_db.update_task_status.assert_called_with(123, '001', 'in_progress')
         # Ensure 'completed' was NOT called
@@ -55,11 +57,11 @@ class TestUS3Loop(unittest.TestCase):
     def test_run_loop_max_iterations(self, mock_iter):
         """US3.3: Assert session marked as failed when max iterations reached."""
         mock_iter.return_value = False # Never completes
-        
+
         with patch.object(self.agent, '_init_session'):
             with patch.object(self.agent, 'display_tasks_table'):
                 result = self.agent.run()
-        
+
         self.assertEqual(result, 1)
         self.mock_db.update_session_status.assert_called_with(123, 'failed')
 
@@ -67,11 +69,11 @@ class TestUS3Loop(unittest.TestCase):
     def test_run_loop_interruption(self, mock_iter):
         """US3.4: Assert session marked as interrupted on KeyboardInterrupt."""
         mock_iter.side_effect = KeyboardInterrupt()
-        
+
         with patch.object(self.agent, '_init_session'):
             with patch.object(self.agent, 'display_tasks_table'):
                 result = self.agent.run()
-        
+
         self.assertEqual(result, 130)
         self.mock_db.update_session_status.assert_called_with(123, 'interrupted')
 

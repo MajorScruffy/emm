@@ -38,6 +38,7 @@
 ### 🧪 Testing & Verification
 
 - **Unit Tests**: `python3 -m unittest discover tests`
+- **Linting**: `ruff check .` and `ruff format --check .`
 - **Key Tests**:
     - `test_us2_sessions.py`: Verifies atomic claiming logic.
     - `test_emm_database.py`: Verifies schema integrity and CRUD.

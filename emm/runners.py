@@ -1,12 +1,13 @@
 import subprocess
 from pathlib import Path
-from typing import Optional, List, Any, Dict
-from emm.logger import DualLogger
+
 from emm import config
+from emm.logger import DualLogger
+
 
 class ToolRunner:
     """Base class/namespace for tool execution."""
-    
+
     def __init__(self, log: DualLogger):
         """
         Args:
@@ -14,7 +15,7 @@ class ToolRunner:
         """
         self.log = log
 
-    def run_shell(self, cmd: List[str], stdin_str: Optional[str] = None, timeout: int = config.COMMAND_TIMEOUT, cwd: Optional[Path] = None) -> str:
+    def run_shell(self, cmd: list[str], stdin_str: str | None = None, timeout: int = config.COMMAND_TIMEOUT, cwd: Path | None = None) -> str:
         """Execute a shell command and return output."""
         try:
             result = subprocess.run(
@@ -25,7 +26,7 @@ class ToolRunner:
                 timeout=timeout,
                 cwd=cwd,
             )
-            
+
             # Display output
             if result.stdout:
                 self.log.info(result.stdout)
@@ -41,11 +42,11 @@ class ToolRunner:
             self.log.error(f"Error running command {cmd}: {e}")
             return f"ERROR: {e}"
 
-    def _build_prompt(self, task: Optional[Dict] = None) -> str:
+    def _build_prompt(self, task: dict | None = None) -> str:
         """Construct the system prompt with optional task context."""
         if not config.PROMPT_FILE.exists():
             return f"ERROR: System prompt not found at {config.PROMPT_FILE}"
-        
+
         prompt = config.PROMPT_FILE.read_text()
         if task:
             prompt += f"\n\n--- CURRENT TASK: {task.get('task_id', 'Unknown')} ---\n"
@@ -55,7 +56,7 @@ class ToolRunner:
                 prompt += f"- [ ] {criteria}\n"
         return prompt
 
-    def run_opencode(self, task: Optional[Dict] = None, cwd: Optional[Path] = None) -> str:
+    def run_opencode(self, task: dict | None = None, cwd: Path | None = None) -> str:
         """Run the opencode tool with context."""
         prompt = self._build_prompt(task)
         if prompt.startswith("ERROR:"):

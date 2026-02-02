@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-import sqlite3, hashlib, json, contextlib, os
+import contextlib
+import hashlib
+import json
+import sqlite3
+from collections.abc import Generator
 from pathlib import Path
-from typing import Optional, Dict, List, Any, Generator
+
 from emm.config import MIGRATIONS_DIR
+
 
 class EmmDatabase:
     def __init__(self, db_path: str):
@@ -49,7 +54,7 @@ class EmmDatabase:
             cursor = connection.execute("INSERT INTO projects (content, hash, name) VALUES (?, ?, ?)", (content, content_hash, Path(project_path).stem))
             return cursor.lastrowid
 
-    def get_project(self, project_id: int) -> Dict:
+    def get_project(self, project_id: int) -> dict:
         row = self.execute("SELECT * FROM projects WHERE id = ?", (project_id,), one=True)
         if not row: raise ValueError(f"Project {project_id} not found")
         return dict(row)
@@ -58,12 +63,12 @@ class EmmDatabase:
         with self.connection() as connection:
             return connection.execute("INSERT INTO sessions (project_id, max_iterations) VALUES (?, ?)", (project_id, max_iterations)).lastrowid
 
-    def get_session(self, session_id: int) -> Dict:
+    def get_session(self, session_id: int) -> dict:
         row = self.execute("SELECT * FROM sessions WHERE id = ?", (session_id,), one=True)
         if not row: raise ValueError(f"Session {session_id} not found")
         return dict(row)
 
-    def get_last_session_id(self, status_not: str = 'completed') -> Optional[int]:
+    def get_last_session_id(self, status_not: str = 'completed') -> int | None:
         row = self.execute("SELECT id FROM sessions WHERE status != ? ORDER BY created_at DESC LIMIT 1", (status_not,), one=True)
         return row[0] if row else None
 
@@ -71,7 +76,7 @@ class EmmDatabase:
         clause = "status = ?, completed_at = CURRENT_TIMESTAMP" if status in ('completed', 'failed', 'interrupted') else "status = ?"
         self.execute(f"UPDATE sessions SET {clause} WHERE id = ?", (status, session_id))
 
-    def create_task(self, session_id: int, task_data: Dict):
+    def create_task(self, session_id: int, task_data: dict):
         return self.execute("INSERT INTO tasks (session_id, branch_name, task_id, title, description, acceptance_criteria) VALUES (?, ?, ?, ?, ?, ?)",
             (session_id, task_data.get('branchName'), task_data['id'], task_data['title'], task_data['description'], json.dumps(task_data.get('acceptanceCriteria', []))))
 
@@ -80,10 +85,10 @@ class EmmDatabase:
         try: return int(row[0]) if row else 0
         except: return 0
 
-    def get_tasks(self, session_id: int) -> List[Dict]:
+    def get_tasks(self, session_id: int) -> list[dict]:
         return [{**dict(row), 'acceptance_criteria': json.loads(row['acceptance_criteria'])} for row in self.execute("SELECT * FROM tasks WHERE session_id = ? ORDER BY id ASC", (session_id,))]
 
-    def get_next_task(self, session_id: int) -> Optional[Dict]:
+    def get_next_task(self, session_id: int) -> dict | None:
         row = self.execute("SELECT * FROM tasks WHERE session_id = ? AND status = 'pending' ORDER BY id ASC LIMIT 1", (session_id,), one=True)
         return {**dict(row), 'acceptance_criteria': json.loads(row['acceptance_criteria'])} if row else None
 
@@ -99,13 +104,13 @@ class EmmDatabase:
     def update_iteration(self, iteration_id: int, output: str, stderr: str):
         self.execute("UPDATE iterations SET opencode_output = ?, opencode_stderr = ?, completed_at = CURRENT_TIMESTAMP, status = 'completed' WHERE id = ?", (output, stderr, iteration_id))
 
-    def get_iterations_for_task(self, session_id: int, task_id: str) -> List[Dict]:
+    def get_iterations_for_task(self, session_id: int, task_id: str) -> list[dict]:
         return [dict(row) for row in self.execute("SELECT * FROM iterations WHERE session_id = ? AND task_id_worked_on = ? ORDER BY iteration_number ASC", (session_id, task_id))]
 
-    def log_message(self, session_id: int, iteration_number: Optional[int], log_level: str, message: str):
+    def log_message(self, session_id: int, iteration_number: int | None, log_level: str, message: str):
         self.execute("INSERT INTO console_logs (session_id, iteration_number, log_level, message) VALUES (?, ?, ?, ?)", (session_id, iteration_number, log_level, message))
 
-    def claim_next_available_project(self, max_iterations: int) -> Optional[int]:
+    def claim_next_available_project(self, max_iterations: int) -> int | None:
         with self.connection(immediate=True) as connection:
             row = connection.execute("SELECT id FROM projects WHERE id NOT IN (SELECT project_id FROM sessions) ORDER BY id ASC LIMIT 1").fetchone()
             if not row: return None
@@ -115,5 +120,5 @@ class EmmDatabase:
     def close(self): pass
 
     @staticmethod
-    def validate_project(project_data: Dict) -> bool:
+    def validate_project(project_data: dict) -> bool:
         return isinstance(project_data, dict) and "tasks" in project_data and isinstance(project_data["tasks"], list)
