@@ -24,12 +24,18 @@ class TestUS5Database(unittest.TestCase):
             # Check tables
             tables = ["projects", "sessions", "tasks", "iterations", "console_logs"]
             for table in tables:
-                cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
+                cursor.execute(
+                    f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'"
+                )
                 self.assertIsNotNone(cursor.fetchone(), f"Table {table} should exist")
 
             # Check indexes
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_tasks_session_status'")
-            self.assertIsNotNone(cursor.fetchone(), "Index idx_tasks_session_status should exist")
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_tasks_session_status'"
+            )
+            self.assertIsNotNone(
+                cursor.fetchone(), "Index idx_tasks_session_status should exist"
+            )
 
     def test_transaction_rollback(self):
         """US5.2: Assert transaction rolls back on exception within context manager."""
@@ -37,12 +43,16 @@ class TestUS5Database(unittest.TestCase):
 
         # Insert a project successfully
         with self.db.connection() as conn:
-            conn.execute("INSERT INTO projects (content, hash, name) VALUES ('C1', 'H1', 'N1')")
+            conn.execute(
+                "INSERT INTO projects (content, hash, name) VALUES ('C1', 'H1', 'N1')"
+            )
 
         # Attempt to insert another but fail mid-way
         try:
             with self.db.connection() as conn:
-                conn.execute("INSERT INTO projects (content, hash, name) VALUES ('C2', 'H2', 'N2')")
+                conn.execute(
+                    "INSERT INTO projects (content, hash, name) VALUES ('C2', 'H2', 'N2')"
+                )
                 raise RuntimeError("Artificial failure")
         except RuntimeError:
             pass
@@ -53,16 +63,17 @@ class TestUS5Database(unittest.TestCase):
             self.assertEqual(row[0], 1)
 
             row = conn.execute("SELECT name FROM projects").fetchone()
-            self.assertEqual(row[0], 'N1')
+            self.assertEqual(row[0], "N1")
 
     def test_foreign_key_enforcement(self):
         """US5.1: Assert foreign keys are active."""
         self.db.initialize_database()
 
-        with self.db.connection() as conn:
+        with self.db.connection() as conn, self.assertRaises(sqlite3.IntegrityError):
             # Attempt to create a session with non-existent project_id
-            with self.assertRaises(sqlite3.IntegrityError):
-                conn.execute("INSERT INTO sessions (project_id, max_iterations) VALUES (999, 10)")
+            conn.execute(
+                "INSERT INTO sessions (project_id, max_iterations) VALUES (999, 10)"
+            )
 
     def test_context_manager_closure(self):
         """US5.3: Assert connections are closed even on error."""
@@ -79,6 +90,7 @@ class TestUS5Database(unittest.TestCase):
         # Should be able to connect again immediately
         with self.db.connection() as conn:
             self.assertIsNotNone(conn)
+
 
 if __name__ == "__main__":
     unittest.main()

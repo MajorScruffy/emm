@@ -1,4 +1,3 @@
-
 import shutil
 import tempfile
 import unittest
@@ -33,8 +32,8 @@ class TestIngestionIntegration(unittest.TestCase):
             "description": "A test project",
             "tasks": [
                 {
-                    "id": "001", 
-                    "title": "Task 1", 
+                    "id": "001",
+                    "title": "Task 1",
                     "description": "Do something",
                     "acceptanceCriteria": ["Done"],
                     "priority": 1
@@ -47,7 +46,7 @@ class TestIngestionIntegration(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
-    @patch('emm.config.PROJECTS_DIR')
+    @patch("emm.config.PROJECTS_DIR")
     def test_auto_ingestion_on_init(self, mock_projects_dir):
         # Mock the config.PROJECTS_DIR to point to our temp dir
         mock_projects_dir.exists.return_value = True
@@ -55,26 +54,30 @@ class TestIngestionIntegration(unittest.TestCase):
 
         # Initialize Agent
         agent = EmmAgent(self.db, self.logger)
-        agent._init_session() # This should trigger ingestion
+        agent._init_session()  # This should trigger ingestion
 
         # Verify Project in DB
         with self.db.connection() as conn:
-            row = conn.execute("SELECT * FROM projects WHERE name = 'test_project'").fetchone()
+            row = conn.execute(
+                "SELECT * FROM projects WHERE name = 'test_project'"
+            ).fetchone()
             self.assertIsNotNone(row)
-            project_id = row['id']
+            project_id = row["id"]
 
             # Verify Project Content matches
-            self.assertIn("Test Project", row['content'])
+            self.assertIn("Test Project", row["content"])
 
             # Verify Session created for this project
-            session_row = conn.execute("SELECT * FROM sessions WHERE project_id = ?", (project_id,)).fetchone()
+            session_row = conn.execute(
+                "SELECT * FROM sessions WHERE project_id = ?", (project_id,)
+            ).fetchone()
             self.assertIsNotNone(session_row)
-            self.assertEqual(session_row['project_id'], project_id)
+            self.assertEqual(session_row["project_id"], project_id)
 
             # Verify Agent claimed this session
-            self.assertEqual(agent.session_id, session_row['id'])
+            self.assertEqual(agent.session_id, session_row["id"])
 
-    @patch('emm.config.PROJECTS_DIR')
+    @patch("emm.config.PROJECTS_DIR")
     def test_idempotency(self, mock_projects_dir):
         # Mock config
         mock_projects_dir.exists.return_value = True
@@ -100,5 +103,6 @@ class TestIngestionIntegration(unittest.TestCase):
         self.assertEqual(pid1, pid2)
         self.assertEqual(count, 1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

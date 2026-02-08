@@ -15,8 +15,10 @@ def get_session_context():
         try:
             data = json.loads(session_file.read_text())
             return data.get("session_id")
-        except: pass
+        except (json.JSONDecodeError, KeyError):
+            pass
     return None
+
 
 def cmd_run(args):
     database = EmmDatabase(str(config.DB_PATH))
@@ -24,6 +26,7 @@ def cmd_run(args):
     logger = DualLogger(db=database)
     agent = EmmAgent(database, logger, args.max_iterations, args.project, args.resume)
     sys.exit(agent.run())
+
 
 def cmd_task(args):
     database = EmmDatabase(str(config.DB_PATH))
@@ -34,7 +37,12 @@ def cmd_task(args):
 
     if args.task_command == "create":
         task_id = f"{database.get_highest_task_id(session_id) + 1:03d}"
-        task_data = {"id": task_id, "title": args.title, "description": args.description, "criteria": args.criteria or []}
+        task_data = {
+            "id": task_id,
+            "title": args.title,
+            "description": args.description,
+            "criteria": args.criteria or [],
+        }
         database.create_task(session_id, task_data)
         print(f"Task {task_id} created in session {session_id}")
     elif args.task_command == "update":
@@ -47,7 +55,8 @@ def cmd_task(args):
             return
         for iteration in iterations:
             print(f"\n--- Iteration {iteration['iteration_number']} ---")
-            print(iteration['opencode_output'])
+            print(iteration["opencode_output"])
+
 
 def main():
     parser = argparse.ArgumentParser(description="Emm - Parallel AI Agent Orchestrator")
@@ -55,8 +64,16 @@ def main():
 
     run_parser = subparsers.add_parser("run", help="Run the agent loop")
     run_parser.add_argument("--project", help="Path to JSON project file")
-    run_parser.add_argument("--resume", action="store_true", help="Resume last incomplete session")
-    run_parser.add_argument("max_iterations", nargs="?", type=int, default=config.DEFAULT_ITERATIONS, help="Max iterations")
+    run_parser.add_argument(
+        "--resume", action="store_true", help="Resume last incomplete session"
+    )
+    run_parser.add_argument(
+        "max_iterations",
+        nargs="?",
+        type=int,
+        default=config.DEFAULT_ITERATIONS,
+        help="Max iterations",
+    )
     run_parser.set_defaults(func=cmd_run)
 
     task_parser = subparsers.add_parser("task", help="Manage tasks")
@@ -70,7 +87,9 @@ def main():
 
     update_parser = task_subparsers.add_parser("update", help="Update task status")
     update_parser.add_argument("task_id", help="Task ID (e.g. 001)")
-    update_parser.add_argument("status", choices=["pending", "in_progress", "completed", "failed"])
+    update_parser.add_argument(
+        "status", choices=["pending", "in_progress", "completed", "failed"]
+    )
 
     history_parser = task_subparsers.add_parser("history", help="Show task history")
     history_parser.add_argument("task_id")
@@ -78,9 +97,15 @@ def main():
 
     args = parser.parse_args()
     if not args.command:
-        args.max_iterations, args.project, args.resume = config.DEFAULT_ITERATIONS, None, False
+        args.max_iterations, args.project, args.resume = (
+            config.DEFAULT_ITERATIONS,
+            None,
+            False,
+        )
         cmd_run(args)
     else:
         args.func(args)
 
-if __name__ == "__main__": main()
+
+if __name__ == "__main__":
+    main()

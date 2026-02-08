@@ -23,19 +23,23 @@ class WorktreeManager:
                 cwd=self.base_dir,
                 check=True,
                 capture_output=True,
-                text=True
+                text=True,
             )
             return True
         except subprocess.CalledProcessError as e:
             if not quiet:
-                self.log.error(f"Git command failed: git {' '.join(args)}\nError: {e.stderr}")
+                self.log.error(
+                    f"Git command failed: git {' '.join(args)}\nError: {e.stderr}"
+                )
             return False
 
     def get_worktree_path(self, session_id: int) -> Path:
         """Get the expected path for a session's worktree."""
         return self.worktrees_dir / f"session-{session_id}"
 
-    def create_worktree(self, session_id: int, base_branch: str | None = None) -> Path | None:
+    def create_worktree(
+        self, session_id: int, base_branch: str | None = None
+    ) -> Path | None:
         """Create a new worktree for the session."""
         path = self.get_worktree_path(session_id)
         if path.exists():
@@ -50,7 +54,7 @@ class WorktreeManager:
                     cwd=self.base_dir,
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=True,
                 )
                 curr = result.stdout.strip()
                 if curr:
@@ -63,15 +67,19 @@ class WorktreeManager:
                             break
                     if not base_branch:
                         base_branch = "HEAD"
-            except:
-                base_branch = "main" # Final fallback
+            except (subprocess.CalledProcessError, OSError):
+                base_branch = "main"  # Final fallback
 
         branch_name = f"emm/session-{session_id}"
 
         # Check if branch already exists
-        branch_exists = self._run_git(["rev-parse", "--verify", branch_name], quiet=True)
+        branch_exists = self._run_git(
+            ["rev-parse", "--verify", branch_name], quiet=True
+        )
 
-        self.log.info(f"Creating worktree for session {session_id} at {path} (from {base_branch})")
+        self.log.info(
+            f"Creating worktree for session {session_id} at {path} (from {base_branch})"
+        )
 
         # Create worktree. Use -b only if it doesn't exist.
         if branch_exists:
@@ -80,7 +88,9 @@ class WorktreeManager:
                 return path
         else:
             # Creating new branch
-            if self._run_git(["worktree", "add", "-b", branch_name, str(path), base_branch]):
+            if self._run_git(
+                ["worktree", "add", "-b", branch_name, str(path), base_branch]
+            ):
                 return path
 
         return None
@@ -106,4 +116,3 @@ class WorktreeManager:
 
         # Prune again after removal
         self._run_git(["worktree", "prune"])
-
