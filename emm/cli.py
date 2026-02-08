@@ -58,6 +58,67 @@ def cmd_task(args):
             print(iteration["opencode_output"])
 
 
+def cmd_list(args):
+    database = EmmDatabase(str(config.DB_PATH))
+    database.run_migrations()
+    logger = DualLogger(db=database)
+
+    if args.list_command == "projects":
+        projects = database.get_all_projects()
+        rows = [[str(p["id"]), p["name"], p["created_at"]] for p in projects]
+        logger.table("Projects", ["ID", "Name", "Created At"], rows)
+    elif args.list_command == "sessions":
+        sessions = database.get_all_sessions()
+        rows = [
+            [
+                str(s["id"]),
+                s["project_name"],
+                s["status"],
+                str(s["completed_tasks"]),
+                s["created_at"],
+            ]
+            for s in sessions
+        ]
+        logger.table(
+            "Sessions", ["ID", "Project", "Status", "Tasks Done", "Created At"], rows
+        )
+    elif args.list_command == "tasks":
+        session_id = args.session or get_session_context()
+        if not session_id:
+            logger.error("No session ID specified.")
+            return
+        tasks = database.get_tasks(session_id)
+        rows = [[t["task_id"], t["title"], t["status"]] for t in tasks]
+        logger.table(f"Tasks for Session {session_id}", ["ID", "Title", "Status"], rows)
+
+
+def cmd_cleanup(args):
+    database = EmmDatabase(str(config.DB_PATH))
+    database.run_migrations()
+    logger = DualLogger(db=database)
+    from emm.git_utils import WorktreeManager
+
+    wm = WorktreeManager(log=logger)
+    worktrees = wm.get_all_worktrees()
+    active_sessions = [
+        str(s["id"])
+        for s in database.execute(
+            "SELECT id FROM sessions WHERE status NOT IN ('completed', 'failed', 'interrupted')"
+        )
+    ]
+
+    for wt in worktrees:
+        if wt.startswith("session-"):
+            session_id = wt.replace("session-", "")
+            if session_id not in active_sessions:
+                if args.dry_run:
+                    logger.info(f"[Dry Run] Would cleanup worktree: {wt}")
+                else:
+                    wm.cleanup_worktree(int(session_id))
+            else:
+                logger.debug(f"Keeping active worktree: {wt}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Emm - Parallel AI Agent Orchestrator")
     subparsers = parser.add_subparsers(dest="command")
@@ -94,6 +155,20 @@ def main():
     history_parser = task_subparsers.add_parser("history", help="Show task history")
     history_parser.add_argument("task_id")
     task_parser.set_defaults(func=cmd_task)
+
+    list_parser = subparsers.add_parser("list", help="List resources")
+    list_subparsers = list_parser.add_subparsers(dest="list_command")
+    list_subparsers.add_parser("projects", help="List ingested projects")
+    list_subparsers.add_parser("sessions", help="List execution sessions")
+    tasks_list_parser = list_subparsers.add_parser("tasks", help="List tasks for a session")
+    tasks_list_parser.add_argument("--session", type=int, help="Session ID")
+    list_parser.set_defaults(func=cmd_list)
+
+    cleanup_parser = subparsers.add_parser("cleanup", help="Cleanup dead worktrees")
+    cleanup_parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be removed"
+    )
+    cleanup_parser.set_defaults(func=cmd_cleanup)
 
     args = parser.parse_args()
     if not args.command:

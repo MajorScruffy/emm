@@ -84,6 +84,9 @@ class EmmDatabase:
             raise ValueError(f"Project {project_id} not found")
         return dict(row)
 
+    def get_all_projects(self) -> list[dict]:
+        return [dict(row) for row in self.execute("SELECT * FROM projects ORDER BY id DESC")]
+
     def create_session(self, project_id: int, max_iterations: int) -> int:
         with self.connection() as connection:
             return connection.execute(
@@ -98,6 +101,16 @@ class EmmDatabase:
         if not row:
             raise ValueError(f"Session {session_id} not found")
         return dict(row)
+
+    def get_all_sessions(self, limit: int = 50) -> list[dict]:
+        sql = """
+            SELECT s.*, p.name as project_name
+            FROM sessions s
+            JOIN projects p ON s.project_id = p.id
+            ORDER BY s.created_at DESC
+            LIMIT ?
+        """
+        return [dict(row) for row in self.execute(sql, (limit,))]
 
     def get_last_session_id(self, status_not: str = "completed") -> int | None:
         row = self.execute(

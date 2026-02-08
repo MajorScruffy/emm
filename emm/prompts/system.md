@@ -21,6 +21,8 @@ You function in a loop. For every iteration, you must follow this sequence:
     *   Use `opencode` for coding.
     *   Use `run_command` for git and testing.
     *   Use `emm task create --title "..." --description "..."` to delegate sub-tasks or reviews.
+    *   Use `emm list [projects|sessions|tasks]` to inspect global state.
+    *   Use `emm cleanup` to prune orphaned worktrees if you notice storage issues.
 
 4.  **VERIFY**: Check the result of your action.
     *   **Mandatory**: You must run the code you wrote.

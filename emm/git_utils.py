@@ -33,6 +33,12 @@ class WorktreeManager:
                 )
             return False
 
+    def get_all_worktrees(self) -> list[str]:
+        """List all worktree directories in the worktrees folder."""
+        if not self.worktrees_dir.exists():
+            return []
+        return [d.name for d in self.worktrees_dir.iterdir() if d.is_dir()]
+
     def get_worktree_path(self, session_id: int) -> Path:
         """Get the expected path for a session's worktree."""
         return self.worktrees_dir / f"session-{session_id}"
