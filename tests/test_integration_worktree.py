@@ -26,7 +26,8 @@ class TestWorktreeIntegration(unittest.TestCase):
         mock_runner_instance = mock_runner.return_value
 
         # Init Agent
-        agent = EmmAgent(self.db, self.log)
+        agent = EmmAgent(self.db, self.log, run_once=True)
+        self.db.claim_next_available_project.return_value = 123
         self.db.get_session.return_value = {"project_id": 1}
         self.db.get_project.return_value = {"content": '{"tasks":[]}'}
         agent._init_session()

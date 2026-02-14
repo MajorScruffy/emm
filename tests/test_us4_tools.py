@@ -14,8 +14,10 @@ class TestUS4Tools(unittest.TestCase):
         self.agent = EmmAgent(
             db=self.mock_db,
             log=self.mock_logger,
-            max_iterations=5
+            max_iterations=5,
+            run_once=True
         )
+        self.agent.worktree_manager = MagicMock()
         # Ensure runner uses the mock logger's log method
         from emm.runners import ToolRunner
         self.agent.runner = ToolRunner(log=self.mock_logger.log)

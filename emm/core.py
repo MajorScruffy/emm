@@ -18,6 +18,7 @@ class EmmAgent:
         project_path: str | None = None,
         resume: bool = False,
         work_dir: Path | None = None,
+        run_once: bool = False,
     ):
         self.db, self.log, self.max_iterations, self.resume = (
             db,
@@ -25,6 +26,7 @@ class EmmAgent:
             max_iterations,
             resume,
         )
+        self.run_once = run_once
         self.runner = ToolRunner(log=self.log)
         self.worktree_manager = WorktreeManager(
             log=self.log, base_dir=work_dir or config.ROOT_DIR
@@ -46,21 +48,26 @@ class EmmAgent:
             except Exception as e:
                 self.log.error(f"Failed to ingest {project_file.name}: {e}")
 
-    def _init_session(self):
+    def _init_session(self) -> bool:
+        """Initialize a new session. Returns True if a session was started/resumed."""
         if self.resume:
             self.session_id = self.db.get_last_session_id()
             if not self.session_id:
                 self.log.error("No sessions found to resume.")
-                sys.exit(1)
+                return False
             self.log.set_session_id(self.session_id)
             self.log.info(f"Resuming session {self.session_id}")
-            return
+            # Identify worktree for resume
+            self.worktree_path = self.worktree_manager.get_worktree_path(self.session_id)
+            if not self.worktree_path.exists():
+                self.log.error(f"Worktree for session {self.session_id} not found at {self.worktree_path}")
+                return False
+            return True
 
         self.ingest_pending_projects()
         self.session_id = self.db.claim_next_available_project(self.max_iterations)
         if not self.session_id:
-            self.log.warning("No unclaimed projects found in the database.")
-            sys.exit(0)
+            return False
         self.log.set_session_id(self.session_id)
 
         session_data = self.db.get_session(self.session_id)
@@ -68,7 +75,7 @@ class EmmAgent:
         content = json.loads(project_data["content"])
         if not EmmDatabase.validate_project(content):
             self.log.error("Invalid project format in database.")
-            sys.exit(1)
+            return False
 
         for task in content.get("tasks", []):
             if "branchName" not in task and "branchName" in content:
@@ -78,11 +85,12 @@ class EmmAgent:
         self.worktree_path = self.worktree_manager.create_worktree(self.session_id)
         if not self.worktree_path:
             self.log.error("Failed to create worktree.")
-            sys.exit(1)
+            return False
         (self.worktree_path / ".session.json").write_text(
             json.dumps({"session_id": self.session_id})
         )
         self.log.info(f"Started session {self.session_id}")
+        return True
 
     def display_tasks_table(self):
         if not self.session_id:
@@ -124,8 +132,10 @@ class EmmAgent:
             return True
         return False
 
-    def run(self) -> int:
-        self._init_session()
+    def run_single_session(self) -> int | None:
+        """Runs a single project session. Returns exit code or None if init failed."""
+        if not self._init_session():
+            return None
         try:
             for iteration in range(1, self.max_iterations + 1):
                 if self.run_iteration(iteration):
@@ -138,9 +148,43 @@ class EmmAgent:
         except KeyboardInterrupt:
             self.log.warning("\nInterrupted by user.")
             self.db.update_session_status(self.session_id, "interrupted")
-            return 130
+            raise
         except Exception as e:
             self.log.error(f"Error in execution loop: {e}")
+            self.db.update_session_status(self.session_id, "failed")
             return 1
         finally:
             self.display_tasks_table()
+            if self.session_id:
+                self.worktree_manager.cleanup_worktree(self.session_id)
+
+    def run(self) -> int:
+        try:
+            while True:
+                exit_code = self.run_single_session()
+                
+                if exit_code is None:
+                    # Couldn't even start a session (likely no projects)
+                    # Check one more time after ingestion
+                    if not self.resume:
+                        self.ingest_pending_projects()
+                        exit_code = self.run_single_session()
+                        if exit_code is None:
+                            self.log.info("No unclaimed projects found in the database.")
+                            return 0
+                    else:
+                        return 1 # Resume failed
+
+                if self.run_once or self.resume:
+                    return exit_code
+                
+                self.log.info("Session complete. Looking for next project...")
+                self.session_id = None
+                self.worktree_path = None
+                self.iteration = 0
+                
+        except KeyboardInterrupt:
+            return 130
+        except Exception as e:
+            self.log.error(f"Fatal error in agent runner: {e}")
+            return 1

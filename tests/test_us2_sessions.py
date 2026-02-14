@@ -16,8 +16,10 @@ class TestUS2Sessions(unittest.TestCase):
         self.agent = EmmAgent(
             db=self.mock_db,
             log=self.mock_logger,
-            max_iterations=10
+            max_iterations=10,
+            run_once=True
         )
+        self.agent.worktree_manager = MagicMock()
 
     def test_fresh_session_start(self):
         """US2.1: Assert fresh session start via claiming."""
@@ -44,19 +46,19 @@ class TestUS2Sessions(unittest.TestCase):
         self.mock_db.create_session.assert_not_called()
 
     def test_resume_exit_when_none_found(self):
-        """US2.4: Assert exit when no previous session exists to resume."""
+        """US2.4: Assert exit when no previous session exists to resume. Now returns False."""
         self.agent.resume = True
         self.mock_db.get_last_session_id.return_value = None
 
-        with self.assertRaises(SystemExit):
-            self.agent._init_session()
+        result = self.agent._init_session()
+        self.assertFalse(result)
 
     def test_no_work_found_exit(self):
-        """US2.1: Assert exit when no unclaimed projects are found."""
+        """US2.1: Assert returns False when no unclaimed projects are found."""
         self.mock_db.claim_next_available_project.return_value = None
 
-        with self.assertRaises(SystemExit):
-            self.agent._init_session()
+        result = self.agent._init_session()
+        self.assertFalse(result)
 
 if __name__ == "__main__":
     unittest.main()

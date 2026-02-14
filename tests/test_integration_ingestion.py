@@ -53,7 +53,7 @@ class TestIngestionIntegration(unittest.TestCase):
         mock_projects_dir.glob.side_effect = self.projects_dir.glob
 
         # Initialize Agent
-        agent = EmmAgent(self.db, self.logger)
+        agent = EmmAgent(self.db, self.logger, run_once=True)
         agent._init_session()  # This should trigger ingestion
 
         # Verify Project in DB
@@ -84,7 +84,7 @@ class TestIngestionIntegration(unittest.TestCase):
         mock_projects_dir.glob.side_effect = self.projects_dir.glob
 
         # First run
-        agent1 = EmmAgent(self.db, self.logger)
+        agent1 = EmmAgent(self.db, self.logger, run_once=True)
         agent1._init_session()
 
         # Check Project ID
@@ -92,7 +92,7 @@ class TestIngestionIntegration(unittest.TestCase):
             pid1 = conn.execute("SELECT id FROM projects").fetchone()[0]
 
         # Second run (simulating restart)
-        agent2 = EmmAgent(self.db, self.logger)
+        agent2 = EmmAgent(self.db, self.logger, run_once=True)
         # Should re-ingest but duplicate check should prevent new row
         agent2.ingest_pending_projects()
 

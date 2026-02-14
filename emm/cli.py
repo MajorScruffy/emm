@@ -24,7 +24,14 @@ def cmd_run(args):
     database = EmmDatabase(str(config.DB_PATH))
     database.run_migrations()
     logger = DualLogger(db=database)
-    agent = EmmAgent(database, logger, args.max_iterations, args.project, args.resume)
+    agent = EmmAgent(
+        database,
+        logger,
+        args.max_iterations,
+        args.project,
+        args.resume,
+        run_once=args.once,
+    )
     sys.exit(agent.run())
 
 
@@ -127,6 +134,9 @@ def main():
     run_parser.add_argument("--project", help="Path to JSON project file")
     run_parser.add_argument(
         "--resume", action="store_true", help="Resume last incomplete session"
+    )
+    run_parser.add_argument(
+        "--once", "-1", action="store_true", help="Run only one project and exit"
     )
     run_parser.add_argument(
         "max_iterations",

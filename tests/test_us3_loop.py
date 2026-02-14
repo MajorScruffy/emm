@@ -11,7 +11,8 @@ class TestUS3Loop(unittest.TestCase):
         self.mock_logger = MagicMock()
         self.mock_logger.console = self.mock_console
 
-        self.agent = EmmAgent(db=self.mock_db, log=self.mock_logger, max_iterations=5)
+        self.agent = EmmAgent(db=self.mock_db, log=self.mock_logger, max_iterations=5, run_once=True)
+        self.agent.worktree_manager = MagicMock()
         self.agent.session_id = 123
         # Set runner for consistency
         from emm.runners import ToolRunner
